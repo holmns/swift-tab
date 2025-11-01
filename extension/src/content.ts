@@ -30,7 +30,29 @@ type RuntimeMessage =
 
   // Track modifier keys to detect Option hold and release
   type ModifierKeyCode = "AltLeft" | "AltRight";
-  const down = new Set<ModifierKeyCode>();
+  const optionKeys = new Set<ModifierKeyCode>();
+  let sessionActive = false;
+  let initializing = false;
+  let pendingMoves = 0;
+
+  function markOptionHeld(event: KeyboardEvent): void {
+    if (event.code === "AltLeft" || event.code === "AltRight") {
+      optionKeys.add(event.code);
+    }
+  }
+
+  function releaseOption(event?: KeyboardEvent): void {
+    if (event?.code === "AltLeft" || event?.code === "AltRight") {
+      optionKeys.delete(event.code);
+    } else if (!event?.altKey) {
+      optionKeys.clear();
+    }
+  }
+
+  function optionIsHeld(event?: KeyboardEvent): boolean {
+    if (event?.altKey) return true;
+    return optionKeys.has("AltLeft") || optionKeys.has("AltRight");
+  }
 
   function ensureHud(): void {
     if (hud) return;
@@ -100,14 +122,18 @@ type RuntimeMessage =
     return Math.max(0, Math.min(max, n));
   }
 
-  function isOptionHeld(): boolean {
-    return down.has("AltLeft") || down.has("AltRight");
-  }
-
   // --- Keyboard handling ---
   function moveSelection(delta: number): void {
     index = clampIndex(index + delta);
     if (visible) render();
+  }
+
+  function flushPendingMoves(): void {
+    while (pendingMoves !== 0) {
+      const step = pendingMoves > 0 ? 1 : -1;
+      moveSelection(step);
+      pendingMoves -= step;
+    }
   }
 
   async function finalize(): Promise<void> {
@@ -120,39 +146,58 @@ type RuntimeMessage =
 
   window.addEventListener(
     "keydown",
-    async (e: KeyboardEvent) => {
-      if (e.key === "Alt") {
-        if (e.code === "AltLeft" || e.code === "AltRight") {
-          down.add(e.code);
-        }
+    async (event: KeyboardEvent) => {
+      if (event.key === "Alt") {
+        markOptionHeld(event);
         return;
       }
 
-      if (e.key.toLowerCase() === "tab" && isOptionHeld()) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (event.key.toLowerCase() === "tab" && optionIsHeld(event)) {
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+        event.stopPropagation();
 
-        if (e.repeat) return;
+        markOptionHeld(event);
 
-        if (!visible) {
-          items = await requestItems();
-          if (items.length < 1) return;
+        if (event.repeat) return;
+
+        const delta = event.shiftKey ? -1 : 1;
+
+        if (!sessionActive) {
+          pendingMoves += delta;
+          if (initializing) return;
+
+          initializing = true;
+          const fetched = await requestItems();
+          initializing = false;
+
+          if (fetched.length < 1) {
+            pendingMoves = 0;
+            sessionActive = false;
+            return;
+          }
+
+          items = fetched;
           index = 0;
+          sessionActive = true;
+
           if (hudTimer) clearTimeout(hudTimer);
           hudTimer = setTimeout(() => {
-            if (isOptionHeld() && !visible) {
+            if (optionIsHeld() && sessionActive && !visible) {
               render();
               show();
             }
             hudTimer = null;
           }, HUD_DELAY);
+
           cycled = true;
-          moveSelection(e.shiftKey ? -1 : 1);
+          flushPendingMoves();
         } else {
           cycled = true;
-          moveSelection(e.shiftKey ? -1 : 1);
+          moveSelection(delta);
         }
-      } else if (isOptionHeld()) {
+      } else if (optionIsHeld(event)) {
+        markOptionHeld(event);
         if (hudTimer) {
           clearTimeout(hudTimer);
           hudTimer = null;
@@ -164,21 +209,25 @@ type RuntimeMessage =
 
   window.addEventListener(
     "keyup",
-    (e: KeyboardEvent) => {
-      if (e.key === "Alt") {
-        if (e.code === "AltLeft" || e.code === "AltRight") {
-          down.delete(e.code);
+    (event: KeyboardEvent) => {
+      if (event.key === "Alt") {
+        releaseOption(event);
+      } else if (!optionIsHeld(event)) {
+        releaseOption(event);
+      }
+
+      if (!optionIsHeld(event)) {
+        if (hudTimer) {
+          clearTimeout(hudTimer);
+          hudTimer = null;
         }
-        if (!isOptionHeld()) {
-          if (hudTimer) {
-            clearTimeout(hudTimer);
-            hudTimer = null;
-          }
-          if (cycled) {
-            void finalize();
-          }
-          cycled = false;
+        if (cycled) {
+          void finalize();
         }
+        sessionActive = false;
+        pendingMoves = 0;
+        initializing = false;
+        cycled = false;
       }
     },
     true

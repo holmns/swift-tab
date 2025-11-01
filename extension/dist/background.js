@@ -136,7 +136,7 @@ async function getHudItems(windowId) {
     if (stack.length === 0)
         return [];
     // Small delay helps Safari populate favIconUrl for newly-active tabs
-    await delay(50);
+    await delay(10);
     const tabs = await chrome.tabs.query({ windowId });
     const typedTabs = tabs.filter((tab) => tab.id !== undefined);
     const byId = new Map(typedTabs.map((tab) => [tab.id, tab]));
@@ -149,7 +149,9 @@ async function getHudItems(windowId) {
         if (!icon) {
             icon =
                 faviconCache.get(tab.id) ||
-                    (tab.url ? `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}` : undefined);
+                    (tab.url
+                        ? `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}`
+                        : undefined);
         }
         else {
             faviconCache.set(tab.id, icon);
@@ -182,8 +184,13 @@ async function activateAt(windowId, position) {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if ((msg === null || msg === void 0 ? void 0 : msg.type) === "mru-request-active") {
         void (async () => {
-            const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            const items = (activeTab === null || activeTab === void 0 ? void 0 : activeTab.windowId) !== undefined ? await getHudItems(activeTab.windowId) : [];
+            const [activeTab] = await chrome.tabs.query({
+                active: true,
+                currentWindow: true,
+            });
+            const items = (activeTab === null || activeTab === void 0 ? void 0 : activeTab.windowId) !== undefined
+                ? await getHudItems(activeTab.windowId)
+                : [];
             sendResponse({ items });
         })();
         return true;

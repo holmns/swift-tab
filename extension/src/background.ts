@@ -148,13 +148,15 @@ async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
   if (stack.length === 0) return [];
 
   // Small delay helps Safari populate favIconUrl for newly-active tabs
-  await delay(50);
+  await delay(10);
 
   const tabs = await chrome.tabs.query({ windowId });
   const typedTabs = tabs.filter(
     (tab): tab is chrome.tabs.Tab & { id: number } => tab.id !== undefined
   );
-  const byId = new Map<TabId, (typeof typedTabs)[number]>(typedTabs.map((tab) => [tab.id, tab]));
+  const byId = new Map<TabId, (typeof typedTabs)[number]>(
+    typedTabs.map((tab) => [tab.id, tab])
+  );
 
   return stack
     .map((id) => byId.get(id))
@@ -164,7 +166,11 @@ async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
       if (!icon) {
         icon =
           faviconCache.get(tab.id) ||
-          (tab.url ? `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}` : undefined);
+          (tab.url
+            ? `https://www.google.com/s2/favicons?domain=${
+                new URL(tab.url).hostname
+              }`
+            : undefined);
       } else {
         faviconCache.set(tab.id, icon);
       }
@@ -191,33 +197,41 @@ async function activateAt(windowId: WindowId, position: number): Promise<void> {
 }
 
 // --- Messages from content.ts ---
-chrome.runtime.onMessage.addListener((msg: BackgroundMessage, _sender, sendResponse) => {
-  if (msg?.type === "mru-request-active") {
-    void (async () => {
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const items = activeTab?.windowId !== undefined ? await getHudItems(activeTab.windowId) : [];
-      sendResponse({ items });
-    })();
-    return true;
-  }
+chrome.runtime.onMessage.addListener(
+  (msg: BackgroundMessage, _sender, sendResponse) => {
+    if (msg?.type === "mru-request-active") {
+      void (async () => {
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        const items =
+          activeTab?.windowId !== undefined
+            ? await getHudItems(activeTab.windowId)
+            : [];
+        sendResponse({ items });
+      })();
+      return true;
+    }
 
-  if (msg?.type === "mru-request") {
-    void (async () => {
-      const win = await chrome.windows.getCurrent();
-      const items = win?.id !== undefined ? await getHudItems(win.id) : [];
-      sendResponse({ items });
-    })();
-    return true;
-  }
+    if (msg?.type === "mru-request") {
+      void (async () => {
+        const win = await chrome.windows.getCurrent();
+        const items = win?.id !== undefined ? await getHudItems(win.id) : [];
+        sendResponse({ items });
+      })();
+      return true;
+    }
 
-  if (msg?.type === "mru-finalize") {
-    void (async () => {
-      const win = await chrome.windows.getCurrent();
-      if (win?.id !== undefined) {
-        await activateAt(win.id, Math.max(0, msg.index ?? 1));
-      }
-    })();
-  }
+    if (msg?.type === "mru-finalize") {
+      void (async () => {
+        const win = await chrome.windows.getCurrent();
+        if (win?.id !== undefined) {
+          await activateAt(win.id, Math.max(0, msg.index ?? 1));
+        }
+      })();
+    }
 
-  return false;
-});
+    return false;
+  }
+);
