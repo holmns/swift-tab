@@ -21,7 +21,7 @@ type Settings = {
 const DEFAULT_SETTINGS: Settings = {
   hudDelay: 150,
   layout: "horizontal",
-  theme: "dark",
+  theme: "system",
 };
 
 type StatusTone = "info" | "error";
@@ -40,8 +40,10 @@ const parseLayout = (value: unknown): LayoutMode =>
   value === "vertical" ? "vertical" : "horizontal";
 
 const parseTheme = (value: unknown): ThemeMode => {
-  if (value === "light" || value === "system") return value;
-  return "dark";
+  if (value === "light" || value === "system" || value === "dark") {
+    return value;
+  }
+  return DEFAULT_SETTINGS.theme;
 };
 
 const getChromeApi = (): ChromeLike | undefined =>
@@ -290,7 +292,7 @@ function App() {
               }
             >
               <img
-                src={optionsTheme === "light" ? sunIcon : moonIcon}
+                src={optionsTheme === "dark" ? sunIcon : moonIcon}
                 alt=""
                 aria-hidden="true"
                 className="h-5 w-5"

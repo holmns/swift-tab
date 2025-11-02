@@ -2,7 +2,7 @@
 const DEFAULT_SETTINGS = {
     hudDelay: 150,
     layout: "horizontal",
-    theme: "dark",
+    theme: "system",
 };
 const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
 (() => {
@@ -22,11 +22,6 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
         colorSchemeQuery: null,
     };
     const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
-    function parseTheme(value) {
-        if (value === "light" || value === "system")
-            return value;
-        return "dark";
-    }
     function readSettings() {
         return new Promise((resolve) => {
             chrome.storage.sync.get(DEFAULT_SETTINGS, (data) => {
@@ -34,7 +29,11 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
                     ? data.hudDelay
                     : DEFAULT_SETTINGS.hudDelay;
                 const layout = data.layout === "vertical" ? "vertical" : "horizontal";
-                const theme = parseTheme(data.theme);
+                const theme = data.theme === "light" ||
+                    data.theme === "dark" ||
+                    data.theme === "system"
+                    ? data.theme
+                    : DEFAULT_SETTINGS.theme;
                 resolve({ hudDelay, layout, theme });
             });
         });
@@ -153,7 +152,7 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
     function optionIsHeld(event) {
         if (event === null || event === void 0 ? void 0 : event.altKey)
             return true;
-        return (state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight"));
+        return state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight");
     }
     function cancelHudTimer() {
         if (!state.hudTimer)
@@ -233,7 +232,9 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
         }
         if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
             const maybeTheme = (_c = changes.theme) === null || _c === void 0 ? void 0 : _c.newValue;
-            if (maybeTheme === "dark" || maybeTheme === "light" || maybeTheme === "system") {
+            if (maybeTheme === "dark" ||
+                maybeTheme === "light" ||
+                maybeTheme === "system") {
                 nextSettings.theme = maybeTheme;
             }
         }

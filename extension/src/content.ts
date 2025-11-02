@@ -26,7 +26,7 @@ type ModifierKeyCode = "AltLeft" | "AltRight";
 const DEFAULT_SETTINGS: HudSettings = {
   hudDelay: 150,
   layout: "horizontal",
-  theme: "dark",
+  theme: "system",
 };
 
 const FALLBACK_FAVICON_DATA_URI =
@@ -51,11 +51,6 @@ const FALLBACK_FAVICON_DATA_URI =
 
   const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 
-  function parseTheme(value: unknown): ThemeMode {
-    if (value === "light" || value === "system") return value;
-    return "dark";
-  }
-
   function readSettings(): Promise<HudSettings> {
     return new Promise((resolve) => {
       chrome.storage.sync.get(
@@ -67,7 +62,12 @@ const FALLBACK_FAVICON_DATA_URI =
               : DEFAULT_SETTINGS.hudDelay;
           const layout: LayoutMode =
             data.layout === "vertical" ? "vertical" : "horizontal";
-          const theme = parseTheme(data.theme);
+          const theme =
+            data.theme === "light" ||
+            data.theme === "dark" ||
+            data.theme === "system"
+              ? data.theme
+              : DEFAULT_SETTINGS.theme;
           resolve({ hudDelay, layout, theme });
         }
       );
@@ -172,12 +172,10 @@ const FALLBACK_FAVICON_DATA_URI =
   }
 
   async function finalize(): Promise<void> {
-    chrome.runtime.sendMessage(
-      {
-        type: "mru-finalize",
-        index: state.index,
-      } satisfies RuntimeMessage
-    );
+    chrome.runtime.sendMessage({
+      type: "mru-finalize",
+      index: state.index,
+    } satisfies RuntimeMessage);
     hide();
   }
 
@@ -197,9 +195,7 @@ const FALLBACK_FAVICON_DATA_URI =
 
   function optionIsHeld(event?: KeyboardEvent): boolean {
     if (event?.altKey) return true;
-    return (
-      state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight")
-    );
+    return state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight");
   }
 
   function cancelHudTimer(): void {
@@ -288,7 +284,11 @@ const FALLBACK_FAVICON_DATA_URI =
     }
     if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
       const maybeTheme = changes.theme?.newValue;
-      if (maybeTheme === "dark" || maybeTheme === "light" || maybeTheme === "system") {
+      if (
+        maybeTheme === "dark" ||
+        maybeTheme === "light" ||
+        maybeTheme === "system"
+      ) {
         nextSettings.theme = maybeTheme;
       }
     }
