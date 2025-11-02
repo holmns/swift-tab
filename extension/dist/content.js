@@ -2,6 +2,7 @@
 const DEFAULT_SETTINGS = {
     hudDelay: 150,
     layout: "horizontal",
+    theme: "dark",
 };
 const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
 (() => {
@@ -18,7 +19,14 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
         sessionActive: false,
         initializing: false,
         pendingMoves: 0,
+        colorSchemeQuery: null,
     };
+    const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
+    function parseTheme(value) {
+        if (value === "light" || value === "system")
+            return value;
+        return "dark";
+    }
     function readSettings() {
         return new Promise((resolve) => {
             chrome.storage.sync.get(DEFAULT_SETTINGS, (data) => {
@@ -26,7 +34,8 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
                     ? data.hudDelay
                     : DEFAULT_SETTINGS.hudDelay;
                 const layout = data.layout === "vertical" ? "vertical" : "horizontal";
-                resolve({ hudDelay, layout });
+                const theme = parseTheme(data.theme);
+                resolve({ hudDelay, layout, theme });
             });
         });
     }
@@ -38,7 +47,9 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
     }
     function applySettings(settings) {
         state.settings = { ...settings };
+        updateColorSchemeListener();
         applyLayout();
+        applyTheme();
     }
     function ensureHud() {
         if (state.hud)
@@ -51,6 +62,7 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
         state.hud = hudEl;
         state.list = listElement;
         applyLayout();
+        applyTheme();
     }
     function render() {
         ensureHud();
@@ -149,8 +161,61 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
         clearTimeout(state.hudTimer);
         state.hudTimer = null;
     }
+    function resolveTheme() {
+        if (state.settings.theme === "system") {
+            if (state.colorSchemeQuery) {
+                return state.colorSchemeQuery.matches ? "dark" : "light";
+            }
+            if (typeof window.matchMedia === "function") {
+                return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light";
+            }
+            return "dark";
+        }
+        return state.settings.theme;
+    }
+    function applyTheme() {
+        if (!state.hud)
+            return;
+        const theme = resolveTheme();
+        state.hud.dataset.theme = theme;
+    }
+    function handleColorSchemeChange(_event) {
+        applyTheme();
+    }
+    function attachColorSchemeListener(query) {
+        var _a;
+        if (typeof query.addEventListener === "function") {
+            query.addEventListener("change", handleColorSchemeChange);
+            return;
+        }
+        const legacyQuery = query;
+        (_a = legacyQuery.addListener) === null || _a === void 0 ? void 0 : _a.call(legacyQuery, handleColorSchemeChange);
+    }
+    function detachColorSchemeListener(query) {
+        var _a;
+        if (typeof query.removeEventListener === "function") {
+            query.removeEventListener("change", handleColorSchemeChange);
+            return;
+        }
+        const legacyQuery = query;
+        (_a = legacyQuery.removeListener) === null || _a === void 0 ? void 0 : _a.call(legacyQuery, handleColorSchemeChange);
+    }
+    function updateColorSchemeListener() {
+        if (state.settings.theme === "system") {
+            if (!state.colorSchemeQuery && typeof window.matchMedia === "function") {
+                const query = window.matchMedia(COLOR_SCHEME_QUERY);
+                attachColorSchemeListener(query);
+                state.colorSchemeQuery = query;
+            }
+            return;
+        }
+        if (state.colorSchemeQuery) {
+            detachColorSchemeListener(state.colorSchemeQuery);
+            state.colorSchemeQuery = null;
+        }
+    }
     chrome.storage.onChanged.addListener((changes, areaName) => {
-        var _a, _b;
+        var _a, _b, _c;
         if (areaName !== "sync")
             return;
         const nextSettings = { ...state.settings };
@@ -164,6 +229,12 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
             const maybeLayout = (_b = changes.layout) === null || _b === void 0 ? void 0 : _b.newValue;
             if (maybeLayout === "vertical" || maybeLayout === "horizontal") {
                 nextSettings.layout = maybeLayout;
+            }
+        }
+        if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
+            const maybeTheme = (_c = changes.theme) === null || _c === void 0 ? void 0 : _c.newValue;
+            if (maybeTheme === "dark" || maybeTheme === "light" || maybeTheme === "system") {
+                nextSettings.theme = maybeTheme;
             }
         }
         applySettings(nextSettings);

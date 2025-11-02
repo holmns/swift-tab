@@ -13,10 +13,12 @@ type RuntimeMessage =
   | { type: "mru-finalize"; index: number };
 
 type LayoutMode = "horizontal" | "vertical";
+type ThemeMode = "dark" | "light" | "system";
 
 interface HudSettings {
   hudDelay: number;
   layout: LayoutMode;
+  theme: ThemeMode;
 }
 
 type ModifierKeyCode = "AltLeft" | "AltRight";
@@ -24,6 +26,7 @@ type ModifierKeyCode = "AltLeft" | "AltRight";
 const DEFAULT_SETTINGS: HudSettings = {
   hudDelay: 150,
   layout: "horizontal",
+  theme: "dark",
 };
 
 const FALLBACK_FAVICON_DATA_URI =
@@ -43,7 +46,15 @@ const FALLBACK_FAVICON_DATA_URI =
     sessionActive: false,
     initializing: false,
     pendingMoves: 0,
+    colorSchemeQuery: null as MediaQueryList | null,
   };
+
+  const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
+
+  function parseTheme(value: unknown): ThemeMode {
+    if (value === "light" || value === "system") return value;
+    return "dark";
+  }
 
   function readSettings(): Promise<HudSettings> {
     return new Promise((resolve) => {
@@ -56,7 +67,8 @@ const FALLBACK_FAVICON_DATA_URI =
               : DEFAULT_SETTINGS.hudDelay;
           const layout: LayoutMode =
             data.layout === "vertical" ? "vertical" : "horizontal";
-          resolve({ hudDelay, layout });
+          const theme = parseTheme(data.theme);
+          resolve({ hudDelay, layout, theme });
         }
       );
     });
@@ -70,7 +82,9 @@ const FALLBACK_FAVICON_DATA_URI =
 
   function applySettings(settings: HudSettings): void {
     state.settings = { ...settings };
+    updateColorSchemeListener();
     applyLayout();
+    applyTheme();
   }
 
   function ensureHud(): void {
@@ -83,6 +97,7 @@ const FALLBACK_FAVICON_DATA_URI =
     state.hud = hudEl;
     state.list = listElement;
     applyLayout();
+    applyTheme();
   }
 
   function render(): void {
@@ -193,6 +208,69 @@ const FALLBACK_FAVICON_DATA_URI =
     state.hudTimer = null;
   }
 
+  function resolveTheme(): "dark" | "light" {
+    if (state.settings.theme === "system") {
+      if (state.colorSchemeQuery) {
+        return state.colorSchemeQuery.matches ? "dark" : "light";
+      }
+      if (typeof window.matchMedia === "function") {
+        return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light";
+      }
+      return "dark";
+    }
+    return state.settings.theme;
+  }
+
+  function applyTheme(): void {
+    if (!state.hud) return;
+    const theme = resolveTheme();
+    state.hud.dataset.theme = theme;
+  }
+
+  function handleColorSchemeChange(_event?: MediaQueryListEvent): void {
+    applyTheme();
+  }
+
+  function attachColorSchemeListener(query: MediaQueryList): void {
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", handleColorSchemeChange);
+      return;
+    }
+
+    const legacyQuery = query as MediaQueryList & {
+      addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+    };
+    legacyQuery.addListener?.(handleColorSchemeChange);
+  }
+
+  function detachColorSchemeListener(query: MediaQueryList): void {
+    if (typeof query.removeEventListener === "function") {
+      query.removeEventListener("change", handleColorSchemeChange);
+      return;
+    }
+
+    const legacyQuery = query as MediaQueryList & {
+      removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+    };
+    legacyQuery.removeListener?.(handleColorSchemeChange);
+  }
+
+  function updateColorSchemeListener(): void {
+    if (state.settings.theme === "system") {
+      if (!state.colorSchemeQuery && typeof window.matchMedia === "function") {
+        const query = window.matchMedia(COLOR_SCHEME_QUERY);
+        attachColorSchemeListener(query);
+        state.colorSchemeQuery = query;
+      }
+      return;
+    }
+
+    if (state.colorSchemeQuery) {
+      detachColorSchemeListener(state.colorSchemeQuery);
+      state.colorSchemeQuery = null;
+    }
+  }
+
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "sync") return;
     const nextSettings: HudSettings = { ...state.settings };
@@ -206,6 +284,12 @@ const FALLBACK_FAVICON_DATA_URI =
       const maybeLayout = changes.layout?.newValue;
       if (maybeLayout === "vertical" || maybeLayout === "horizontal") {
         nextSettings.layout = maybeLayout;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
+      const maybeTheme = changes.theme?.newValue;
+      if (maybeTheme === "dark" || maybeTheme === "light" || maybeTheme === "system") {
+        nextSettings.theme = maybeTheme;
       }
     }
     applySettings(nextSettings);
