@@ -14,138 +14,116 @@ type RuntimeMessage =
 
 type LayoutMode = "horizontal" | "vertical";
 
-(() => {
-  // --- UI state ---
-  let hud: HTMLDivElement | null = null;
-  let listEl: HTMLUListElement | null = null;
-  let items: MruItem[] = [];
-  let index = 1;
-  let visible = false;
-  let hudTimer: ReturnType<typeof setTimeout> | null = null;
-  let cycled = false;
-  const DEFAULT_SETTINGS = { hudDelay: 150, layout: "horizontal" as LayoutMode };
-  let HUD_DELAY = DEFAULT_SETTINGS.hudDelay;
-  let layout: LayoutMode = DEFAULT_SETTINGS.layout;
+interface HudSettings {
+  hudDelay: number;
+  layout: LayoutMode;
+}
 
-  function isLayout(value: unknown): value is LayoutMode {
-    return value === "horizontal" || value === "vertical";
+type ModifierKeyCode = "AltLeft" | "AltRight";
+
+const DEFAULT_SETTINGS: HudSettings = {
+  hudDelay: 150,
+  layout: "horizontal",
+};
+
+const FALLBACK_FAVICON_DATA_URI =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
+
+(() => {
+  const state = {
+    hud: null as HTMLDivElement | null,
+    list: null as HTMLUListElement | null,
+    items: [] as MruItem[],
+    index: 1,
+    visible: false,
+    hudTimer: null as ReturnType<typeof setTimeout> | null,
+    cycled: false,
+    settings: { ...DEFAULT_SETTINGS },
+    optionKeys: new Set<ModifierKeyCode>(),
+    sessionActive: false,
+    initializing: false,
+    pendingMoves: 0,
+  };
+
+  function readSettings(): Promise<HudSettings> {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(
+        DEFAULT_SETTINGS,
+        (data: Partial<HudSettings>) => {
+          const hudDelay =
+            typeof data.hudDelay === "number" && Number.isFinite(data.hudDelay)
+              ? data.hudDelay
+              : DEFAULT_SETTINGS.hudDelay;
+          const layout: LayoutMode =
+            data.layout === "vertical" ? "vertical" : "horizontal";
+          resolve({ hudDelay, layout });
+        }
+      );
+    });
   }
 
   function applyLayout(): void {
-    if (!hud) return;
-    hud.classList.remove("horizontal", "vertical");
-    hud.classList.add(layout);
+    if (!state.hud) return;
+    state.hud.classList.remove("horizontal", "vertical");
+    state.hud.classList.add(state.settings.layout);
   }
 
-  chrome.storage.sync.get(
-    { hudDelay: DEFAULT_SETTINGS.hudDelay, layout: DEFAULT_SETTINGS.layout },
-    (data: { hudDelay?: unknown; layout?: unknown }) => {
-      const delayValue =
-        typeof data.hudDelay === "number" && Number.isFinite(data.hudDelay)
-          ? data.hudDelay
-          : DEFAULT_SETTINGS.hudDelay;
-      HUD_DELAY = delayValue;
-
-      const nextLayout = isLayout(data.layout) ? data.layout : DEFAULT_SETTINGS.layout;
-      layout = nextLayout;
-      applyLayout();
-    }
-  );
-
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "sync") return;
-    if (Object.prototype.hasOwnProperty.call(changes, "hudDelay")) {
-      const next = changes.hudDelay?.newValue;
-      if (typeof next === "number" && Number.isFinite(next)) {
-        HUD_DELAY = next;
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(changes, "layout")) {
-      const next = changes.layout?.newValue;
-      if (isLayout(next)) {
-        layout = next;
-        applyLayout();
-        if (visible) render();
-      }
-    }
-  });
-
-  // Track modifier keys to detect Option hold and release
-  type ModifierKeyCode = "AltLeft" | "AltRight";
-  const optionKeys = new Set<ModifierKeyCode>();
-  let sessionActive = false;
-  let initializing = false;
-  let pendingMoves = 0;
-
-  function markOptionHeld(event: KeyboardEvent): void {
-    if (event.code === "AltLeft" || event.code === "AltRight") {
-      optionKeys.add(event.code);
-    }
-  }
-
-  function releaseOption(event?: KeyboardEvent): void {
-    if (event?.code === "AltLeft" || event?.code === "AltRight") {
-      optionKeys.delete(event.code);
-    } else if (!event?.altKey) {
-      optionKeys.clear();
-    }
-  }
-
-  function optionIsHeld(event?: KeyboardEvent): boolean {
-    if (event?.altKey) return true;
-    return optionKeys.has("AltLeft") || optionKeys.has("AltRight");
+  function applySettings(settings: HudSettings): void {
+    state.settings = { ...settings };
+    applyLayout();
   }
 
   function ensureHud(): void {
-    if (hud) return;
+    if (state.hud) return;
     const hudEl = document.createElement("div");
     hudEl.id = "safari-mru-hud";
     const listElement = document.createElement("ul");
     hudEl.appendChild(listElement);
     document.documentElement.appendChild(hudEl);
-    hud = hudEl;
-    listEl = listElement;
+    state.hud = hudEl;
+    state.list = listElement;
     applyLayout();
   }
 
   function render(): void {
     ensureHud();
-    if (!listEl) return;
-    const listElement = listEl;
-    listElement.innerHTML = "";
-    items.forEach((t, i) => {
+    if (!state.list) return;
+    state.list.innerHTML = "";
+    state.items.forEach((tab, i) => {
       const li = document.createElement("li");
-      if (i === index) li.classList.add("selected");
+      if (i === state.index) li.classList.add("selected");
+
       const img = document.createElement("img");
       img.className = "favicon";
-      img.src = t.favIconUrl || "";
+      img.src = tab.favIconUrl || FALLBACK_FAVICON_DATA_URI;
       img.referrerPolicy = "no-referrer";
       img.loading = "lazy";
       img.onerror = () => {
-        img.style.opacity = "0.3";
-        img.src =
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="gray"/></svg>';
+        img.src = FALLBACK_FAVICON_DATA_URI;
+        img.style.opacity = "0.75";
       };
+
       const span = document.createElement("span");
       span.className = "title";
-      span.textContent = t.title ?? "Untitled";
+      span.textContent = tab.title ?? "Untitled";
+
       li.appendChild(img);
       li.appendChild(span);
-      listElement.appendChild(li);
+      state.list!.appendChild(li);
     });
   }
 
   function show(): void {
     ensureHud();
-    if (!hud) return;
-    hud.style.display = "block";
-    visible = true;
+    if (!state.hud) return;
+    state.hud.style.display = "block";
+    state.visible = true;
   }
 
   function hide(): void {
-    if (!hud) return;
-    hud.style.display = "none";
-    visible = false;
+    if (!state.hud) return;
+    state.hud.style.display = "none";
+    state.visible = false;
   }
 
   async function requestItems(): Promise<MruItem[]> {
@@ -159,34 +137,80 @@ type LayoutMode = "horizontal" | "vertical";
     });
   }
 
-  function wrapIndex(n: number): number {
-    if (!items.length) return 0;
-    const max = items.length;
-    const wrapped = ((n % max) + max) % max;
-    return wrapped;
+  function wrapIndex(nextIndex: number): number {
+    if (!state.items.length) return 0;
+    const size = state.items.length;
+    return ((nextIndex % size) + size) % size;
   }
 
-  // --- Keyboard handling ---
   function moveSelection(delta: number): void {
-    index = wrapIndex(index + delta);
-    if (visible) render();
+    state.index = wrapIndex(state.index + delta);
+    if (state.visible) render();
   }
 
   function flushPendingMoves(): void {
-    while (pendingMoves !== 0) {
-      const step = pendingMoves > 0 ? 1 : -1;
+    while (state.pendingMoves !== 0) {
+      const step = state.pendingMoves > 0 ? 1 : -1;
       moveSelection(step);
-      pendingMoves -= step;
+      state.pendingMoves -= step;
     }
   }
 
   async function finalize(): Promise<void> {
-    chrome.runtime.sendMessage({
-      type: "mru-finalize",
-      index,
-    } satisfies RuntimeMessage);
+    chrome.runtime.sendMessage(
+      {
+        type: "mru-finalize",
+        index: state.index,
+      } satisfies RuntimeMessage
+    );
     hide();
   }
+
+  function markOptionHeld(event: KeyboardEvent): void {
+    if (event.code === "AltLeft" || event.code === "AltRight") {
+      state.optionKeys.add(event.code);
+    }
+  }
+
+  function releaseOption(event?: KeyboardEvent): void {
+    if (event?.code === "AltLeft" || event?.code === "AltRight") {
+      state.optionKeys.delete(event.code);
+    } else if (!event?.altKey) {
+      state.optionKeys.clear();
+    }
+  }
+
+  function optionIsHeld(event?: KeyboardEvent): boolean {
+    if (event?.altKey) return true;
+    return (
+      state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight")
+    );
+  }
+
+  function cancelHudTimer(): void {
+    if (!state.hudTimer) return;
+    clearTimeout(state.hudTimer);
+    state.hudTimer = null;
+  }
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "sync") return;
+    const nextSettings: HudSettings = { ...state.settings };
+    if (Object.prototype.hasOwnProperty.call(changes, "hudDelay")) {
+      const maybeDelay = changes.hudDelay?.newValue;
+      if (typeof maybeDelay === "number" && Number.isFinite(maybeDelay)) {
+        nextSettings.hudDelay = maybeDelay;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "layout")) {
+      const maybeLayout = changes.layout?.newValue;
+      if (maybeLayout === "vertical" || maybeLayout === "horizontal") {
+        nextSettings.layout = maybeLayout;
+      }
+    }
+    applySettings(nextSettings);
+    if (state.visible) render();
+  });
 
   window.addEventListener(
     "keydown",
@@ -202,50 +226,46 @@ type LayoutMode = "horizontal" | "vertical";
         event.stopPropagation();
 
         markOptionHeld(event);
-
         if (event.repeat) return;
 
         const delta = event.shiftKey ? -1 : 1;
 
-        if (!sessionActive) {
-          pendingMoves += delta;
-          if (initializing) return;
+        if (!state.sessionActive) {
+          state.pendingMoves += delta;
+          if (state.initializing) return;
 
-          initializing = true;
+          state.initializing = true;
           const fetched = await requestItems();
-          initializing = false;
+          state.initializing = false;
 
           if (fetched.length < 1) {
-            pendingMoves = 0;
-            sessionActive = false;
+            state.pendingMoves = 0;
+            state.sessionActive = false;
             return;
           }
 
-          items = fetched;
-          index = 0;
-          sessionActive = true;
+          state.items = fetched;
+          state.index = 0;
+          state.sessionActive = true;
 
-          if (hudTimer) clearTimeout(hudTimer);
-          hudTimer = setTimeout(() => {
-            if (optionIsHeld() && sessionActive && !visible) {
+          cancelHudTimer();
+          state.hudTimer = setTimeout(() => {
+            if (optionIsHeld() && state.sessionActive && !state.visible) {
               render();
               show();
             }
-            hudTimer = null;
-          }, HUD_DELAY);
+            state.hudTimer = null;
+          }, state.settings.hudDelay);
 
-          cycled = true;
+          state.cycled = true;
           flushPendingMoves();
         } else {
-          cycled = true;
+          state.cycled = true;
           moveSelection(delta);
         }
       } else if (optionIsHeld(event)) {
         markOptionHeld(event);
-        if (hudTimer) {
-          clearTimeout(hudTimer);
-          hudTimer = null;
-        }
+        cancelHudTimer();
       }
     },
     true
@@ -261,19 +281,18 @@ type LayoutMode = "horizontal" | "vertical";
       }
 
       if (!optionIsHeld(event)) {
-        if (hudTimer) {
-          clearTimeout(hudTimer);
-          hudTimer = null;
-        }
-        if (cycled) {
+        cancelHudTimer();
+        if (state.cycled) {
           void finalize();
         }
-        sessionActive = false;
-        pendingMoves = 0;
-        initializing = false;
-        cycled = false;
+        state.sessionActive = false;
+        state.pendingMoves = 0;
+        state.initializing = false;
+        state.cycled = false;
       }
     },
     true
   );
+
+  void readSettings().then(applySettings);
 })();

@@ -162,6 +162,11 @@ function App() {
             "Saved. The new settings apply to the next Option+Tab cycle.",
           tone: "info",
         });
+        setTimeout(() => {
+          setStatus((current) =>
+            current?.tone === "info" ? undefined : current
+          );
+        }, 3000);
       } catch (error) {
         const message =
           error instanceof Error
