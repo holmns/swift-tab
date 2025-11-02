@@ -21,6 +21,7 @@ async function delay(ms: number): Promise<void> {
 
 const mruStore = (() => {
   const stacks = new Map<WindowId, TabId[]>();
+  let seedAllPromise: Promise<void> | null = null;
 
   function ensure(windowId: WindowId): void {
     if (!stacks.has(windowId)) stacks.set(windowId, []);
@@ -61,7 +62,7 @@ const mruStore = (() => {
     }
   }
 
-  async function seedAll(): Promise<void> {
+  async function performSeedAll(): Promise<void> {
     const windows = await chrome.windows.getAll({ populate: true });
     for (const window of windows) {
       if (window.id === undefined) continue;
@@ -77,6 +78,20 @@ const mruStore = (() => {
     }
   }
 
+  async function seedAll(): Promise<void> {
+    if (!seedAllPromise) {
+      seedAllPromise = performSeedAll().finally(() => {
+        seedAllPromise = null;
+      });
+    }
+    await seedAllPromise;
+  }
+
+  async function ensureSeeded(): Promise<void> {
+    if (stacks.size > 0) return;
+    await seedAll();
+  }
+
   function getStack(windowId: WindowId): TabId[] {
     ensure(windowId);
     return stacks.get(windowId) ?? [];
@@ -89,6 +104,7 @@ const mruStore = (() => {
     remove,
     backfill,
     seedAll,
+    ensureSeeded,
     getStack,
     stacks, // exposed for size checks
   };
@@ -186,6 +202,7 @@ const faviconStore = (() => {
 })();
 
 async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
+  await mruStore.ensureSeeded();
   mruStore.ensure(windowId);
 
   let stack = [...mruStore.getStack(windowId)];

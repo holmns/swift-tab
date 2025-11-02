@@ -3,7 +3,7 @@
   "description": "MRU tab switcher with HUD",
   "version": "1.2.0",
   "manifest_version": 3,
-  "permissions": ["tabs", "storage"],
+  "permissions": ["tabs"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "dist/background.js" },
   "options_ui": {

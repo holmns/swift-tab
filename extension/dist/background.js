@@ -5,6 +5,7 @@ async function delay(ms) {
 }
 const mruStore = (() => {
     const stacks = new Map();
+    let seedAllPromise = null;
     function ensure(windowId) {
         if (!stacks.has(windowId))
             stacks.set(windowId, []);
@@ -47,7 +48,7 @@ const mruStore = (() => {
             }
         }
     }
-    async function seedAll() {
+    async function performSeedAll() {
         var _a;
         const windows = await chrome.windows.getAll({ populate: true });
         for (const window of windows) {
@@ -65,6 +66,19 @@ const mruStore = (() => {
             }
         }
     }
+    async function seedAll() {
+        if (!seedAllPromise) {
+            seedAllPromise = performSeedAll().finally(() => {
+                seedAllPromise = null;
+            });
+        }
+        await seedAllPromise;
+    }
+    async function ensureSeeded() {
+        if (stacks.size > 0)
+            return;
+        await seedAll();
+    }
     function getStack(windowId) {
         var _a;
         ensure(windowId);
@@ -77,6 +91,7 @@ const mruStore = (() => {
         remove,
         backfill,
         seedAll,
+        ensureSeeded,
         getStack,
         stacks, // exposed for size checks
     };
@@ -168,6 +183,7 @@ const faviconStore = (() => {
     };
 })();
 async function getHudItems(windowId) {
+    await mruStore.ensureSeeded();
     mruStore.ensure(windowId);
     let stack = [...mruStore.getStack(windowId)];
     if (stack.length === 0) {
