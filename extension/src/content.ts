@@ -1,33 +1,13 @@
-interface MruItem {
-  id: number;
-  title?: string;
-  favIconUrl?: string;
-}
-
-interface MruResponse {
-  items?: MruItem[];
-}
-
-type RuntimeMessage =
-  | { type: "mru-request-active" }
-  | { type: "mru-finalize"; index: number };
-
-type LayoutMode = "horizontal" | "vertical";
-type ThemeMode = "dark" | "light" | "system";
-
-interface HudSettings {
-  hudDelay: number;
-  layout: LayoutMode;
-  theme: ThemeMode;
-}
+import {
+  DEFAULT_SETTINGS,
+  normalizeHudSettings,
+  type HudItem,
+  type HudItemsResponse,
+  type HudMessage,
+  type HudSettings,
+} from "./shared/index";
 
 type ModifierKeyCode = "AltLeft" | "AltRight";
-
-const DEFAULT_SETTINGS: HudSettings = {
-  hudDelay: 150,
-  layout: "horizontal",
-  theme: "system",
-};
 
 const FALLBACK_FAVICON_DATA_URI =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
@@ -36,7 +16,7 @@ const FALLBACK_FAVICON_DATA_URI =
   const state = {
     hud: null as HTMLDivElement | null,
     list: null as HTMLUListElement | null,
-    items: [] as MruItem[],
+    items: [] as HudItem[],
     index: 1,
     visible: false,
     hudTimer: null as ReturnType<typeof setTimeout> | null,
@@ -53,24 +33,9 @@ const FALLBACK_FAVICON_DATA_URI =
 
   function readSettings(): Promise<HudSettings> {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(
-        DEFAULT_SETTINGS,
-        (data: Partial<HudSettings>) => {
-          const hudDelay =
-            typeof data.hudDelay === "number" && Number.isFinite(data.hudDelay)
-              ? data.hudDelay
-              : DEFAULT_SETTINGS.hudDelay;
-          const layout: LayoutMode =
-            data.layout === "vertical" ? "vertical" : "horizontal";
-          const theme =
-            data.theme === "light" ||
-            data.theme === "dark" ||
-            data.theme === "system"
-              ? data.theme
-              : DEFAULT_SETTINGS.theme;
-          resolve({ hudDelay, layout, theme });
-        }
-      );
+      chrome.storage.sync.get(DEFAULT_SETTINGS, (data: Partial<HudSettings>) => {
+        resolve(normalizeHudSettings(data));
+      });
     });
   }
 
@@ -141,11 +106,11 @@ const FALLBACK_FAVICON_DATA_URI =
     state.visible = false;
   }
 
-  async function requestItems(): Promise<MruItem[]> {
-    return new Promise<MruItem[]>((resolve) => {
+  async function requestItems(): Promise<HudItem[]> {
+    return new Promise<HudItem[]>((resolve) => {
       chrome.runtime.sendMessage(
-        { type: "mru-request-active" } satisfies RuntimeMessage,
-        (resp?: MruResponse) => {
+        { type: "mru-request" } satisfies HudMessage,
+        (resp?: HudItemsResponse) => {
           resolve(resp?.items ?? []);
         }
       );
@@ -175,7 +140,7 @@ const FALLBACK_FAVICON_DATA_URI =
     chrome.runtime.sendMessage({
       type: "mru-finalize",
       index: state.index,
-    } satisfies RuntimeMessage);
+    } satisfies HudMessage);
     hide();
   }
 

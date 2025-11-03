@@ -1,9 +1,41 @@
-"use strict";
+const HUD_DELAY_MIN = 0;
+const HUD_DELAY_MAX = 1000;
 const DEFAULT_SETTINGS = {
     hudDelay: 150,
     layout: "horizontal",
     theme: "system",
 };
+function clampHudDelay(value, fallback = DEFAULT_SETTINGS.hudDelay) {
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numeric))
+        return fallback;
+    const rounded = Math.round(numeric);
+    if (rounded < HUD_DELAY_MIN)
+        return HUD_DELAY_MIN;
+    if (rounded > HUD_DELAY_MAX)
+        return HUD_DELAY_MAX;
+    return rounded;
+}
+function parseLayoutMode(value, fallback = DEFAULT_SETTINGS.layout) {
+    if (value === "vertical" || value === "horizontal") {
+        return value;
+    }
+    return fallback;
+}
+function parseThemeMode(value, fallback = DEFAULT_SETTINGS.theme) {
+    if (value === "dark" || value === "light" || value === "system") {
+        return value;
+    }
+    return fallback;
+}
+function normalizeHudSettings(input, fallback = DEFAULT_SETTINGS) {
+    return {
+        hudDelay: clampHudDelay(input === null || input === void 0 ? void 0 : input.hudDelay, fallback.hudDelay),
+        layout: parseLayoutMode(input === null || input === void 0 ? void 0 : input.layout, fallback.layout),
+        theme: parseThemeMode(input === null || input === void 0 ? void 0 : input.theme, fallback.theme),
+    };
+}
+
 const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
 (() => {
     const state = {
@@ -25,16 +57,7 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
     function readSettings() {
         return new Promise((resolve) => {
             chrome.storage.sync.get(DEFAULT_SETTINGS, (data) => {
-                const hudDelay = typeof data.hudDelay === "number" && Number.isFinite(data.hudDelay)
-                    ? data.hudDelay
-                    : DEFAULT_SETTINGS.hudDelay;
-                const layout = data.layout === "vertical" ? "vertical" : "horizontal";
-                const theme = data.theme === "light" ||
-                    data.theme === "dark" ||
-                    data.theme === "system"
-                    ? data.theme
-                    : DEFAULT_SETTINGS.theme;
-                resolve({ hudDelay, layout, theme });
+                resolve(normalizeHudSettings(data));
             });
         });
     }
@@ -105,7 +128,7 @@ const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
     }
     async function requestItems() {
         return new Promise((resolve) => {
-            chrome.runtime.sendMessage({ type: "mru-request-active" }, (resp) => {
+            chrome.runtime.sendMessage({ type: "mru-request" }, (resp) => {
                 var _a;
                 resolve((_a = resp === null || resp === void 0 ? void 0 : resp.items) !== null && _a !== void 0 ? _a : []);
             });

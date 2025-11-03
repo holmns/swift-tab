@@ -2,48 +2,27 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import sunIcon from "./assets/icons/sun.svg";
 import moonIcon from "./assets/icons/moon.svg";
+import {
+  DEFAULT_SETTINGS,
+  HUD_DELAY_MAX,
+  HUD_DELAY_MIN,
+  clampHudDelay,
+  normalizeHudSettings,
+  type HudSettings,
+  type LayoutMode,
+  type ThemeMode,
+} from "@shared";
 
-const MIN_DELAY = 0;
-const MAX_DELAY = 1000;
 const FALLBACK_STORAGE_KEY = "swift-tab-options";
 const OPTIONS_THEME_STORAGE_KEY = "swift-tab-options-theme";
 
-type LayoutMode = "horizontal" | "vertical";
-type ThemeMode = "dark" | "light" | "system";
 type OptionsTheme = "light" | "dark";
-
-type Settings = {
-  hudDelay: number;
-  layout: LayoutMode;
-  theme: ThemeMode;
-};
-
-const DEFAULT_SETTINGS: Settings = {
-  hudDelay: 150,
-  layout: "horizontal",
-  theme: "system",
-};
 
 type StatusTone = "info" | "error";
 
 type ChromeLike = {
   storage?: { sync?: chrome.storage.SyncStorageArea };
   runtime?: { lastError?: { message?: string } };
-};
-
-const clampDelay = (value: number) => {
-  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.hudDelay;
-  return Math.min(MAX_DELAY, Math.max(MIN_DELAY, Math.round(value)));
-};
-
-const parseLayout = (value: unknown): LayoutMode =>
-  value === "vertical" ? "vertical" : "horizontal";
-
-const parseTheme = (value: unknown): ThemeMode => {
-  if (value === "light" || value === "system" || value === "dark") {
-    return value;
-  }
-  return DEFAULT_SETTINGS.theme;
 };
 
 const getChromeApi = (): ChromeLike | undefined =>
@@ -89,21 +68,14 @@ const CaretUpIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const readSettings = (): Promise<Settings> =>
+const readSettings = (): Promise<HudSettings> =>
   new Promise((resolve) => {
     const chromeApi = getChromeApi();
     const chromeSync = chromeApi?.storage?.sync;
 
     if (chromeSync) {
       chromeSync.get(DEFAULT_SETTINGS, (data) => {
-        const hudDelayValue = clampDelay(Number(data.hudDelay));
-        const layoutValue = parseLayout(data.layout);
-        const themeValue = parseTheme(data.theme);
-        resolve({
-          hudDelay: hudDelayValue,
-          layout: layoutValue,
-          theme: themeValue,
-        });
+        resolve(normalizeHudSettings(data));
       });
       return;
     }
@@ -111,38 +83,28 @@ const readSettings = (): Promise<Settings> =>
     const local =
       typeof window !== "undefined" ? window.localStorage : undefined;
     if (!local) {
-      resolve(DEFAULT_SETTINGS);
+      resolve({ ...DEFAULT_SETTINGS });
       return;
     }
 
     try {
       const raw = local.getItem(FALLBACK_STORAGE_KEY);
       if (!raw) {
-        resolve(DEFAULT_SETTINGS);
+        resolve({ ...DEFAULT_SETTINGS });
         return;
       }
-      const parsed = JSON.parse(raw) as Partial<Settings>;
-      resolve({
-        hudDelay: clampDelay(
-          Number(parsed.hudDelay ?? DEFAULT_SETTINGS.hudDelay)
-        ),
-        layout: parseLayout(parsed.layout),
-        theme: parseTheme(parsed.theme),
-      });
+      const parsed = JSON.parse(raw) as Partial<HudSettings>;
+      resolve(normalizeHudSettings(parsed));
     } catch {
-      resolve(DEFAULT_SETTINGS);
+      resolve({ ...DEFAULT_SETTINGS });
     }
   });
 
-const writeSettings = (settings: Settings): Promise<void> =>
+const writeSettings = (settings: HudSettings): Promise<void> =>
   new Promise((resolve, reject) => {
     const chromeApi = getChromeApi();
     const chromeSync = chromeApi?.storage?.sync;
-    const normalized: Settings = {
-      hudDelay: clampDelay(settings.hudDelay),
-      layout: parseLayout(settings.layout),
-      theme: parseTheme(settings.theme),
-    };
+    const normalized = normalizeHudSettings(settings);
 
     if (chromeSync) {
       chromeSync.set(normalized, () => {
@@ -219,11 +181,12 @@ function App() {
   const parsedDelay = useMemo(() => {
     const numeric = Number(hudDelay);
     if (!Number.isFinite(numeric)) return null;
-    return clampDelay(numeric);
+    return clampHudDelay(numeric);
   }, [hudDelay]);
 
   const delayHint = useMemo(() => {
-    if (parsedDelay === null) return "Enter a number between 0 and 1000";
+    if (parsedDelay === null)
+      return `Enter a number between ${HUD_DELAY_MIN} and ${HUD_DELAY_MAX}`;
     if (parsedDelay !== Number(hudDelay)) {
       return `Will be clamped to ${parsedDelay} ms`;
     }
@@ -418,8 +381,8 @@ function App() {
                     id="hud-delay"
                     className="w-40 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base shadow-inner transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-wait disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus-visible:ring-offset-slate-900"
                     type="number"
-                    min={MIN_DELAY}
-                    max={MAX_DELAY}
+                    min={HUD_DELAY_MIN}
+                    max={HUD_DELAY_MAX}
                     step={10}
                     inputMode="numeric"
                     value={hudDelay}

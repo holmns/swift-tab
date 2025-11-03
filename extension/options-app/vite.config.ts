@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [react()],
   root: resolve(__dirname),
   base: './',
+  resolve: {
+    alias: {
+      '@shared': resolve(__dirname, '../src/shared'),
+    },
+  },
   build: {
     outDir: resolve(__dirname, '../options-dist'),
     emptyOutDir: true,
