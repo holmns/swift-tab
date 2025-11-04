@@ -35,6 +35,16 @@ function normalizeHudSettings(input, fallback = DEFAULT_SETTINGS) {
         theme: parseThemeMode(input === null || input === void 0 ? void 0 : input.theme, fallback.theme),
     };
 }
+function resolveHudTitle(source) {
+    var _a, _b, _c;
+    const trimmedTitle = (_a = source.title) === null || _a === void 0 ? void 0 : _a.trim();
+    if (trimmedTitle)
+        return trimmedTitle;
+    const canonicalUrl = ((_b = source.url) === null || _b === void 0 ? void 0 : _b.trim()) || ((_c = source.pendingUrl) === null || _c === void 0 ? void 0 : _c.trim());
+    if (canonicalUrl)
+        return canonicalUrl;
+    return "Untitled";
+}
 
 const FALLBACK_FAVICON_DATA_URI = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
 (() => {

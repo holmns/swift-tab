@@ -69,6 +69,22 @@ export interface HudItem {
   pinned?: boolean;
 }
 
+export interface HudTitleSource {
+  title?: string | null;
+  url?: string | null;
+  pendingUrl?: string | null;
+}
+
+export function resolveHudTitle(source: HudTitleSource): string {
+  const trimmedTitle = source.title?.trim();
+  if (trimmedTitle) return trimmedTitle;
+
+  const canonicalUrl = source.url?.trim() || source.pendingUrl?.trim();
+  if (canonicalUrl) return canonicalUrl;
+
+  return "Untitled";
+}
+
 export interface HudItemsResponse {
   items?: HudItem[];
 }

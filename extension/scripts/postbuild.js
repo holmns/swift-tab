@@ -4,24 +4,26 @@ const path = require('path');
 const distDir = path.join(__dirname, '..', 'dist');
 const sharedPath = path.join(distDir, 'shared', 'index.js');
 const contentPath = path.join(distDir, 'content.js');
+const backgroundPath = path.join(distDir, 'background.js');
 
-function inlineSharedIntoContent() {
-  if (!fs.existsSync(contentPath) || !fs.existsSync(sharedPath)) {
+function inlineSharedInto(targetPath) {
+  if (!fs.existsSync(targetPath) || !fs.existsSync(sharedPath)) {
     return;
   }
 
   const sharedSource = fs.readFileSync(sharedPath, 'utf8');
-  const contentSource = fs.readFileSync(contentPath, 'utf8');
+  const targetSource = fs.readFileSync(targetPath, 'utf8');
 
-  const strippedShared = sharedSource.replace(/\bexport\s+/g, '');
-  const importPattern = /import\s+\{[^}]+\}\s+from\s+"\.\/shared\/index";\s*/;
+  const strippedShared = sharedSource.replace(/\bexport\s+(?=(const|function|class))/g, '');
+  const importPattern = /import\s+[^;]+from\s+"\.\/shared\/index";\s*/;
 
-  if (!importPattern.test(contentSource)) {
+  if (!importPattern.test(targetSource)) {
     return;
   }
 
-  const stitched = contentSource.replace(importPattern, `${strippedShared}\n`);
-  fs.writeFileSync(contentPath, stitched);
+  const stitched = targetSource.replace(importPattern, `${strippedShared}\n`);
+  fs.writeFileSync(targetPath, stitched);
 }
 
-inlineSharedIntoContent();
+inlineSharedInto(contentPath);
+inlineSharedInto(backgroundPath);

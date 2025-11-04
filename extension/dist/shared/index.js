@@ -35,3 +35,13 @@ export function normalizeHudSettings(input, fallback = DEFAULT_SETTINGS) {
         theme: parseThemeMode(input === null || input === void 0 ? void 0 : input.theme, fallback.theme),
     };
 }
+export function resolveHudTitle(source) {
+    var _a, _b, _c;
+    const trimmedTitle = (_a = source.title) === null || _a === void 0 ? void 0 : _a.trim();
+    if (trimmedTitle)
+        return trimmedTitle;
+    const canonicalUrl = ((_b = source.url) === null || _b === void 0 ? void 0 : _b.trim()) || ((_c = source.pendingUrl) === null || _c === void 0 ? void 0 : _c.trim());
+    if (canonicalUrl)
+        return canonicalUrl;
+    return "Untitled";
+}
