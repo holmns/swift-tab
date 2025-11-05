@@ -18,6 +18,7 @@ jobs:
       DERIVED_DATA_PATH: ${{ github.workspace }}/DerivedData/SwiftTab
       APP_BUNDLE_PATH: ${{ github.workspace }}/DerivedData/SwiftTab/Build/Products/Release/SwiftTab.app
       ARTIFACT_ZIP: ${{ github.workspace }}/SwiftTab-macOS-Release.zip
+      HAS_SIGNING_CERT: ${{ secrets.MACOS_SIGNING_CERT != '' && secrets.MACOS_SIGNING_CERT_PASSWORD != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,7 +48,27 @@ jobs:
         working-directory: extension
         run: npm run build
 
-      - name: Build SwiftTab macOS app
+      - name: Import signing certificate
+        if: env.HAS_SIGNING_CERT == 'true'
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.MACOS_SIGNING_CERT }}
+          p12-password: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+
+      - name: Build SwiftTab macOS app (signed)
+        if: env.HAS_SIGNING_CERT == 'true'
+        run: |
+          set -eo pipefail
+          xcodebuild \
+            -project "${PROJECT_PATH}" \
+            -scheme "${SCHEME}" \
+            -configuration Release \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            -destination 'generic/platform=macOS' \
+            clean build
+
+      - name: Build SwiftTab macOS app (unsigned fallback)
+        if: env.HAS_SIGNING_CERT != 'true'
         run: |
           set -eo pipefail
           xcodebuild \

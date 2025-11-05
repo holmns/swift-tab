@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		F4251C092EB52FE200D36FD4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4251C082EB52FE200D36FD4 /* AppDelegate.swift */; };
 		F4251C0C2EB52FE200D36FD4 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F4251C0A2EB52FE200D36FD4 /* Main.storyboard */; };
-		F4251C1D2EB52FE200D36FD4 /* Safari MRU Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F4251C1C2EB52FE200D36FD4 /* Safari MRU Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F4251C1D2EB52FE200D36FD4 /* SwiftTab Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F4251C1C2EB52FE200D36FD4 /* SwiftTab Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F4251C232EB52FE200D36FD4 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = F4251BE72EB52FE100D36FD4 /* Main.html */; };
 		F4251C252EB52FE200D36FD4 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = F4251BE92EB52FE100D36FD4 /* Icon.png */; };
 		F4251C272EB52FE200D36FD4 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = F4251BEA2EB52FE100D36FD4 /* Style.css */; };
@@ -33,7 +33,7 @@
 			containerPortal = F4251BE12EB52FE100D36FD4 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F4251C1B2EB52FE200D36FD4;
-			remoteInfo = "Safari MRU Extension (macOS)";
+			remoteInfo = "SwiftTab Extension (macOS)";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -44,7 +44,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				F4251C1D2EB52FE200D36FD4 /* Safari MRU Extension.appex in Embed Foundation Extensions */,
+				F4251C1D2EB52FE200D36FD4 /* SwiftTab Extension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -63,7 +63,7 @@
 		F4251C082EB52FE200D36FD4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F4251C0B2EB52FE200D36FD4 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F4251C0D2EB52FE200D36FD4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F4251C1C2EB52FE200D36FD4 /* Safari MRU Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Safari MRU Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4251C1C2EB52FE200D36FD4 /* SwiftTab Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SwiftTab Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4251C212EB52FE200D36FD4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F4251C422EB52FE200D36FD4 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../extension/manifest.json; sourceTree = SOURCE_ROOT; };
 		F46177BA2EB54E4D00B26797 /* content.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = content.css; path = ../../extension/content.css; sourceTree = SOURCE_ROOT; };
@@ -135,7 +135,7 @@
 			isa = PBXGroup;
 			children = (
 				F4251C062EB52FE200D36FD4 /* SwiftTab.app */,
-				F4251C1C2EB52FE200D36FD4 /* Safari MRU Extension.appex */,
+				F4251C1C2EB52FE200D36FD4 /* SwiftTab Extension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -210,8 +210,8 @@
 			name = "SwiftTab Extension (macOS)";
 			packageProductDependencies = (
 			);
-			productName = "Safari MRU Extension (macOS)";
-			productReference = F4251C1C2EB52FE200D36FD4 /* Safari MRU Extension.appex */;
+			productName = "SwiftTab Extension (macOS)";
+			productReference = F4251C1C2EB52FE200D36FD4 /* SwiftTab Extension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -470,7 +470,7 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.holmns.swifttab.Extension;
-				PRODUCT_NAME = "Safari MRU Extension";
+				PRODUCT_NAME = "SwiftTab Extension";
 				SAFARI_EXTENSION_BASE_URL = "$(PROJECT_DIR)/../../extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -507,7 +507,7 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.holmns.swifttab.Extension;
-				PRODUCT_NAME = "Safari MRU Extension";
+				PRODUCT_NAME = "SwiftTab Extension";
 				SAFARI_EXTENSION_BASE_URL = "$(PROJECT_DIR)/../../extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
