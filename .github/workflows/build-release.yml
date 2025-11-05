@@ -16,6 +16,8 @@ jobs:
       PROJECT_PATH: SwiftTabProject/SwiftTab/SwiftTab.xcodeproj
       SCHEME: "SwiftTab (macOS)"
       DERIVED_DATA_PATH: ${{ github.workspace }}/DerivedData/SwiftTab
+      APP_BUNDLE_PATH: ${{ github.workspace }}/DerivedData/SwiftTab/Build/Products/Release/SwiftTab.app
+      ARTIFACT_ZIP: ${{ github.workspace }}/SwiftTab-macOS-Release.zip
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,8 +62,12 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             clean build
 
+      - name: Package app bundle
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "${APP_BUNDLE_PATH}" "${ARTIFACT_ZIP}"
+
       - name: Upload Release app
         uses: actions/upload-artifact@v4
         with:
           name: SwiftTab-macOS-Release
-          path: ${{ env.DERIVED_DATA_PATH }}/Build/Products/Release/SwiftTab.app
+          path: ${{ env.ARTIFACT_ZIP }}
