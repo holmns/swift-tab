@@ -5,12 +5,10 @@ import {
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
+  FALLBACK_FAVICON_DATA_URI,
 } from "./shared/index";
 
 type ModifierKeyCode = "AltLeft" | "AltRight";
-
-const FALLBACK_FAVICON_DATA_URI =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#4b5563"/><path d="M5.5 4h5a2.5 2.5 0 0 1 0 5h-5v3H4V4.75A.75.75 0 0 1 4.75 4H5.5zm1 1.5v2h4a1 1 0 1 0 0-2h-4z" fill="#f8fafc"/></svg>';
 
 (() => {
   const state = {
@@ -97,13 +95,9 @@ const FALLBACK_FAVICON_DATA_URI =
 
       const img = document.createElement("img");
       img.className = "favicon";
-      img.src = tab.favIconUrl || FALLBACK_FAVICON_DATA_URI;
+      img.src = tab.favIconUrl;
       img.referrerPolicy = "no-referrer";
       img.loading = "lazy";
-      img.onerror = () => {
-        img.src = FALLBACK_FAVICON_DATA_URI;
-        img.style.opacity = "0.75";
-      };
 
       const span = document.createElement("span");
       span.className = "title";

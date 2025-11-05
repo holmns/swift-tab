@@ -4,9 +4,8 @@ import {
   type HudMessage,
   type TabId,
   type WindowId,
+  FALLBACK_FAVICON_DATA_URI,
 } from "./shared/index";
-
-const FALLBACK_ICON_DATA_URI = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFX0lEQVR4nO2a228WVRTFC02xDWmtVV/wxXLzSRT1waQIXoi36IMXUEmUNngD1AZIKvgkeMGYaPQfsKhPUqOJSrzilQhi0YJJFUR5sYqIoeKFooSf2c06ye50vpnz9ZvSYlxJk87sNefMnnP2Ofus/VVV/Y84AKfZX9XJAmA6cDfwArAd6Gc4+mV7HrjLnqkaDwCagJVADyPHl8CKMRk14HTgSeCwe6HfgGPu+iVgjru+BNjoro/pmQBr6wn7OCfCgQnAEuCge4G3gFuBh3T9F3CHe2YQ7noxcES31wC3AW+79g4AbdbXaE6j11yHHwMtss0D/gGOAzcnnhviiO4tENeemad7NnqfuPZfLXy6AecA+9wUWOxsNcDXsj2c8uwwR3R/nUz2bI273wr8Ltt3wIyinLhAw23YkVxpFKiGb4BJZTgyCdgt88qEbYb6MvwMzC5iJIITHwD1CXuds19doo1UR2S71sVFXcJWD3zonJleSUyE6dQLTE7h2L5h6Mlop6Qjsu8U5c4U22Q3bfcCjSNZnXxgo2mw3DcGbJPt3gocWSbKVnfvVGCpm3oBr5S1mtnXcYHdoa8R8LeWyzWOU1+BIw0uuDuATcCA6+9bYJXbs1rL2ezCPrFM96ptWdWeYY54/CHHnrWRAa4CLgKm2ug5nn3lZi0eV2paPg286Rzxm+W7Wqar9Q42G0K85C/L2rHDPjGxROy0uiAvEr8oBzsjpd+Jbp9Zn+dEkxvClpwYCknhxcB1mhbP6Ut2A98Dh9xL9mvxsGX1PWADsBq4wfpynAkZ/Vqag1Kb0qOiuWj4LCLTNfyQ+WUiYsTxfhR1Wg7vU/Has0ghi70xpzGbu4bXC3TEgpxkipPR9468r/wnUJvT2OPiri3QkUdEfSyHV6fE1NBclbG5vRHR6cviLizQEcugDRsjuLbSGZakGe1kZ7g/oiFLVwyXFejI5aK+H8FtF3dDmvFzGS+NaOgrcc8t0JFZou6K4M4Xd1ua8VDJeTec2yfulAIdmSJqXwR3mri/Jg3VOugc82eDjIaOqqFTCnTE0np7h6MR3Bq96/Ehm7bSh5MVDf9JR6rLnFohO62N4A4iglcr6sCIp9Y4Cfazygh2y6yHB7uMpgDGLr+7xJ1VoCPni7ozgntF8jDmjSZjjuWGGF6unA2xM81o5wDDpoiGusS9ZRRSlK5KUxSfNA5RNDKSxnVjnDSeXYpkgrLhppzG7Ngbm2COVhrfnUUyZd2wPTJF6CvQkZ9EnZrD2yreA3lFmXDUnRN51G3RcdVUlRctWDWy+xI1kn4df/1R147H1+u4HDhZR925jpetcUnazxIfztTCYEJB0TggYaOphPiwJSaOvAARFJLlbudfCGxO1ECQlGOryFNycL4kn+aEHNSojexCyUH3AM9ISjJJycMkp3cSctB9su2PVhxVn0DTbJVEsoABBWaHc6Qho61B5Ah0h5VurJZ2FrLroMg/6Kb87VFOuBiw+oTHbglwDSmS6dIKHDFpNCmZNkpKNYXfI3ePKRX49jWQkDxaInZPjojdK/sey9LLdsTVKUyiRBJ/VlnhmoLLCg3ARy4uMvWuGGdmO2e+AGaOQqFnRcI2023O5sR5FTmRGJm9LrjbSpTe1pbhSEhJehOltzYnau+peCRSOm5UfSJgS9g0E8XQBXmOaCkPxdC5Ttfd4gN7xDERuZq1uqmG1vtFrjx9xNcwko7oeV+eXiThO2B/WUtshQ7ZirY+UfBP/mCgy6nn6P+gUCJu8gcHj5ZdXivQoXZXgR0JutXGiXcgDUpJ7FcRnVaWsPN0yksf1CbaKW76eWI8QovE+PjaVScB/gUcpqAaAuI+2AAAAABJRU5ErkJggg==`;
 
 const mruStore = (() => {
   const stacks = new Map<WindowId, TabId[]>();
@@ -294,20 +293,13 @@ const faviconStore = (() => {
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
       reader.onloadend = () =>
-        typeof reader.result === "string"
+        typeof reader.result === "string" && reader.result.startsWith("data:")
           ? resolve(reader.result)
           : reject(new Error("Invalid result"));
       reader.onerror = () =>
         reject(reader.error ?? new Error("FileReader error"));
       reader.readAsDataURL(blob);
     });
-  }
-
-  function ensureDataUri(candidate: string): string {
-    if (typeof candidate === "string" && candidate.startsWith("data:")) {
-      return candidate;
-    }
-    throw new Error("Invalid data URI");
   }
 
   async function fetchAndCacheUrl(url: string): Promise<string> {
@@ -319,13 +311,13 @@ const faviconStore = (() => {
 
     const promise = (async () => {
       try {
-        const dataUri = ensureDataUri(await fetchAsDataURI(url));
+        const dataUri = await fetchAsDataURI(url);
         byUrl.set(url, dataUri);
         return dataUri;
       } catch (error) {
         console.warn("[SwiftTab] Failed to fetch favicon URL", url, error);
-        byUrl.set(url, FALLBACK_ICON_DATA_URI);
-        return FALLBACK_ICON_DATA_URI;
+        byUrl.set(url, FALLBACK_FAVICON_DATA_URI);
+        return FALLBACK_FAVICON_DATA_URI;
       } finally {
         pendingByUrl.delete(url);
       }
@@ -345,7 +337,7 @@ const faviconStore = (() => {
     const promise = (async () => {
       const ddgFaviconUrl = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
       try {
-        const dataUri = ensureDataUri(await fetchAsDataURI(ddgFaviconUrl));
+        const dataUri = await fetchAsDataURI(ddgFaviconUrl);
         byHost.set(hostname, dataUri);
         return dataUri;
       } catch (error) {
@@ -354,8 +346,8 @@ const faviconStore = (() => {
           hostname,
           error
         );
-        byHost.set(hostname, FALLBACK_ICON_DATA_URI);
-        return FALLBACK_ICON_DATA_URI;
+        byHost.set(hostname, FALLBACK_FAVICON_DATA_URI);
+        return FALLBACK_FAVICON_DATA_URI;
       } finally {
         pendingByHost.delete(hostname);
       }
@@ -385,7 +377,7 @@ const faviconStore = (() => {
         "[SwiftTab] No Hostname. Fallback favicon for tab",
         tab.title
       );
-      return FALLBACK_ICON_DATA_URI;
+      return FALLBACK_FAVICON_DATA_URI;
     }
 
     const cachedByHost = byHost.get(hostname);
