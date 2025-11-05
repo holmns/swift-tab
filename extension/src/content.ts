@@ -5,7 +5,8 @@ import {
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
-  FALLBACK_FAVICON_DATA_URI,
+  FALLBACK_FAVICON_LIGHT_URI,
+  FALLBACK_FAVICON_DARK_URI,
 } from "./shared/index";
 
 type ModifierKeyCode = "AltLeft" | "AltRight";
@@ -81,6 +82,11 @@ type ModifierKeyCode = "AltLeft" | "AltRight";
     applyTheme();
   }
 
+  function getFaviconFallback(): string {
+    const theme = resolveTheme();
+    return theme === "dark" ? FALLBACK_FAVICON_DARK_URI : FALLBACK_FAVICON_LIGHT_URI;
+  }
+
   function render(): void {
     ensureHud();
     if (!state.list) return;
@@ -91,7 +97,7 @@ type ModifierKeyCode = "AltLeft" | "AltRight";
 
       const img = document.createElement("img");
       img.className = "favicon";
-      img.src = tab.favIconUrl;
+      img.src = tab.favIconUrl ?? getFaviconFallback();
       img.referrerPolicy = "no-referrer";
       img.loading = "lazy";
 

@@ -4,7 +4,6 @@ import {
   type HudMessage,
   type TabId,
   type WindowId,
-  FALLBACK_FAVICON_DATA_URI,
 } from "./shared/index";
 
 const mruStore = (() => {
@@ -259,10 +258,10 @@ const mruStore = (() => {
 })();
 
 const faviconStore = (() => {
-  const byHost = new Map<string, string>(); // hostname -> data URI
-  const byUrl = new Map<string, string>(); // favicon URL -> data URI
-  const pendingByHost = new Map<string, Promise<string>>();
-  const pendingByUrl = new Map<string, Promise<string>>();
+  const byHost = new Map<string, string | null>(); // hostname -> data URI | null
+  const byUrl = new Map<string, string | null>(); // favicon URL -> data URI | null
+  const pendingByHost = new Map<string, Promise<string | null>>();
+  const pendingByUrl = new Map<string, Promise<string | null>>();
 
   function extractHostname(rawUrl?: string | null): string | null {
     if (!rawUrl) return null;
@@ -289,7 +288,7 @@ const faviconStore = (() => {
     });
   }
 
-  async function fetchAndCacheUrl(url: string): Promise<string> {
+  async function fetchAndCacheUrl(url: string): Promise<string | null> {
     const cached = byUrl.get(url);
     if (cached) return cached;
 
@@ -303,8 +302,8 @@ const faviconStore = (() => {
         return dataUri;
       } catch (error) {
         console.warn("[SwiftTab] Failed to fetch favicon URL", url, error);
-        byUrl.set(url, FALLBACK_FAVICON_DATA_URI);
-        return FALLBACK_FAVICON_DATA_URI;
+        byUrl.set(url, null);
+        return null;
       } finally {
         pendingByUrl.delete(url);
       }
@@ -314,7 +313,7 @@ const faviconStore = (() => {
     return promise;
   }
 
-  async function resolveHostFavicon(hostname: string): Promise<string> {
+  async function resolveHostFavicon(hostname: string): Promise<string | null> {
     const cached = byHost.get(hostname);
     if (cached) return cached;
 
@@ -329,8 +328,8 @@ const faviconStore = (() => {
         return dataUri;
       } catch (error) {
         console.warn("[SwiftTab] Failed to fetch DuckDuckGo favicon", hostname, error);
-        byHost.set(hostname, FALLBACK_FAVICON_DATA_URI);
-        return FALLBACK_FAVICON_DATA_URI;
+        byHost.set(hostname, null);
+        return null;
       } finally {
         pendingByHost.delete(hostname);
       }
@@ -340,7 +339,7 @@ const faviconStore = (() => {
     return promise;
   }
 
-  async function resolve(tab: chrome.tabs.Tab & { id: number }): Promise<string> {
+  async function resolve(tab: chrome.tabs.Tab & { id: number }): Promise<string | null> {
     if (tab.favIconUrl?.startsWith("data:")) {
       console.log("[SwiftTab] Using data URI favicon for tab", tab.id);
       return tab.favIconUrl;
@@ -355,7 +354,7 @@ const faviconStore = (() => {
 
     if (!hostname) {
       console.log("[SwiftTab] No Hostname. Fallback favicon for tab", tab.title);
-      return FALLBACK_FAVICON_DATA_URI;
+      return null;
     }
 
     const cachedByHost = byHost.get(hostname);
@@ -405,7 +404,7 @@ async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
       url: tab.url ?? null,
       pendingUrl: tab.pendingUrl ?? null,
     }),
-    favIconUrl: icons[idx],
+    favIconUrl: icons[idx] ?? null,
     pinned: tab.pinned,
   }));
 }
