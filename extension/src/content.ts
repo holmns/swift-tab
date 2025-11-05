@@ -36,7 +36,8 @@ const FALLBACK_FAVICON_DATA_URI =
       webkitExitFullscreen?: () => Promise<void> | void;
       webkitFullscreenElement?: Element | null;
     };
-    const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement;
+    const fullscreenElement =
+      doc.fullscreenElement ?? doc.webkitFullscreenElement;
     if (!fullscreenElement) return;
     try {
       if (typeof doc.exitFullscreen === "function") {
@@ -149,14 +150,6 @@ const FALLBACK_FAVICON_DATA_URI =
     if (state.visible) render();
   }
 
-  function flushPendingMoves(): void {
-    while (state.pendingMoves !== 0) {
-      const step = state.pendingMoves > 0 ? 1 : -1;
-      moveSelection(step);
-      state.pendingMoves -= step;
-    }
-  }
-
   async function finalize(): Promise<void> {
     await exitFullscreenIfNeeded();
     chrome.runtime.sendMessage({
@@ -180,8 +173,7 @@ const FALLBACK_FAVICON_DATA_URI =
     }
   }
 
-  function optionIsHeld(event?: KeyboardEvent): boolean {
-    if (event?.altKey) return true;
+  function optionIsHeld(): boolean {
     return state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight");
   }
 
@@ -291,12 +283,11 @@ const FALLBACK_FAVICON_DATA_URI =
         return;
       }
 
-      if (event.key.toLowerCase() === "tab" && optionIsHeld(event)) {
+      if (event.key.toLowerCase() === "tab" && optionIsHeld()) {
         event.preventDefault();
         event.stopImmediatePropagation?.();
         event.stopPropagation();
 
-        markOptionHeld(event);
         if (event.repeat) return;
 
         const delta = event.shiftKey ? -1 : 1;
@@ -329,14 +320,12 @@ const FALLBACK_FAVICON_DATA_URI =
           }, state.settings.hudDelay);
 
           state.cycled = true;
-          flushPendingMoves();
+          moveSelection(state.pendingMoves);
+          state.pendingMoves = 0;
         } else {
           state.cycled = true;
           moveSelection(delta);
         }
-      } else if (optionIsHeld(event)) {
-        markOptionHeld(event);
-        cancelHudTimer();
       }
     },
     true
@@ -347,11 +336,9 @@ const FALLBACK_FAVICON_DATA_URI =
     (event: KeyboardEvent) => {
       if (event.key === "Alt") {
         releaseOption(event);
-      } else if (!optionIsHeld(event)) {
-        releaseOption(event);
       }
 
-      if (!optionIsHeld(event)) {
+      if (!optionIsHeld()) {
         cancelHudTimer();
         if (state.cycled) {
           void finalize();

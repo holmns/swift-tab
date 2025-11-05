@@ -21,3 +21,7 @@ build/
 
 # npm
 **/node_modules/
+
+# Build output
+/extension/dist/
+/extension/options-dist/
