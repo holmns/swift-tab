@@ -11,7 +11,7 @@
     "open_in_tab": false
   },
   "commands": {
-    "swift-tab-show-hud": {
+    "swift-tab-search": {
       "description": "Search Tabs"
     }
   },

@@ -537,12 +537,12 @@ function registerListeners(): void {
 
   if (chrome.commands) {
     chrome.commands.onCommand.addListener(async (command) => {
-      if (command !== "swift-tab-show-hud") return;
+      if (command !== "swift-tab-search") return;
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!activeTab?.id) return;
       try {
         await chrome.tabs.sendMessage(activeTab.id, {
-          type: "hud-activate",
+          type: "hud-start-search",
         } satisfies ContentCommandMessage);
       } catch (error) {
         const message = (error as { message?: string } | undefined)?.message;

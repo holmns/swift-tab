@@ -775,7 +775,7 @@ type SessionMode = "altTab" | "command" | null;
 
   chrome.runtime.onMessage.addListener((message: HudMessage | ContentCommandMessage) => {
     if (!message || typeof message !== "object") return;
-    if (message.type === "hud-activate") {
+    if (message.type === "hud-start-search") {
       void startCommandSession();
     }
   });
