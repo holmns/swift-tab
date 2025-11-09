@@ -12,70 +12,42 @@ import UIKit
 typealias PlatformViewController = UIViewController
 #elseif os(macOS)
 import Cocoa
-import SafariServices
+import SwiftUI
 typealias PlatformViewController = NSViewController
 #endif
 
-let extensionBundleIdentifier = "com.holmns.swifttab.Extension"
+class ViewController: PlatformViewController {
 
-class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMessageHandler {
-
+#if os(iOS)
     @IBOutlet var webView: WKWebView!
+#elseif os(macOS)
+    private let onboardingViewModel = MacOnboardingViewModel()
+#endif
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.webView.navigationDelegate = self
-
 #if os(iOS)
-        self.webView.scrollView.isScrollEnabled = false
-#endif
-
-        self.webView.configuration.userContentController.add(self, name: "controller")
-
-        self.webView.loadFileURL(Bundle.main.url(forResource: "Main", withExtension: "html")!, allowingReadAccessTo: Bundle.main.resourceURL!)
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-#if os(iOS)
-        webView.evaluateJavaScript("show('ios')")
+        configureWebView()
 #elseif os(macOS)
-        webView.evaluateJavaScript("show('mac')")
-
-        SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionBundleIdentifier) { (state, error) in
-            guard let state = state, error == nil else {
-                // Insert code to inform the user that something went wrong.
-                return
-            }
-
-            DispatchQueue.main.async {
-                if #available(macOS 13, *) {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), true)")
-                } else {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), false)")
-                }
-            }
-        }
+        configureMacContent()
 #endif
     }
-
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-#if os(macOS)
-        if (message.body as! String != "open-preferences") {
-            return
-        }
-
-        SFSafariApplication.showPreferencesForExtension(withIdentifier: extensionBundleIdentifier) { error in
-            guard error == nil else {
-                // Insert code to inform the user that something went wrong.
-                return
-            }
-
-            DispatchQueue.main.async {
-                NSApp.terminate(self)
-            }
-        }
-#endif
-    }
-
 }
+
+#if os(macOS)
+private extension ViewController {
+    func configureMacContent() {
+        let hostingView = NSHostingView(rootView: OnboardingFlowView(viewModel: onboardingViewModel))
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hostingView)
+
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: view.topAnchor),
+            hostingView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
+}
+#endif

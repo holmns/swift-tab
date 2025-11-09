@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A43A214370C47F6B8A84783 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F82703A4B8B4D9BA5611DE3 /* DashboardView.swift */; };
+		4861A8397A6A463C9A67AF7D /* WelcomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D911F63EA12E4B28B07B42ED /* WelcomeScreen.swift */; };
+		929A359DC368460F863CE403 /* TutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AC2B156421436D8B2693D0 /* TutorialView.swift */; };
 		F4251C092EB52FE200D36FD4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4251C082EB52FE200D36FD4 /* AppDelegate.swift */; };
 		F4251C0C2EB52FE200D36FD4 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F4251C0A2EB52FE200D36FD4 /* Main.storyboard */; };
 		F4251C1D2EB52FE200D36FD4 /* SwiftTab Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F4251C1C2EB52FE200D36FD4 /* SwiftTab Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -24,6 +27,9 @@
 		F46177C22EB54E4D00B26797 /* dist in Resources */ = {isa = PBXBuildFile; fileRef = F46177BB2EB54E4D00B26797 /* dist */; };
 		F46177C32EB54E4D00B26797 /* content.css in Resources */ = {isa = PBXBuildFile; fileRef = F46177BA2EB54E4D00B26797 /* content.css */; };
 		F46177C52EB54E4D00B26797 /* options-dist in Resources */ = {isa = PBXBuildFile; fileRef = F46177BC2EB54E4D00B26797 /* options-dist */; };
+		F4CA31A52EBDF91F009C23CF /* OnboardingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A42EBDF91F009C23CF /* OnboardingFlowView.swift */; };
+		F4CA31A62EBDF91F009C23CF /* MacOnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */; };
+		F4CA31A82EBFB820009C23CF /* BrandTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */; };
 		FE4E8A0B2FF07E5100C8B1A1 /* SwiftTabProject in Resources */ = {isa = PBXBuildFile; fileRef = FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */; };
 /* End PBXBuildFile section */
 
@@ -52,6 +58,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3F82703A4B8B4D9BA5611DE3 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		42AC2B156421436D8B2693D0 /* TutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialView.swift; sourceTree = "<group>"; };
+		D911F63EA12E4B28B07B42ED /* WelcomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeScreen.swift; sourceTree = "<group>"; };
 		F4251BE82EB52FE100D36FD4 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
 		F4251BE92EB52FE100D36FD4 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
 		F4251BEA2EB52FE100D36FD4 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
@@ -69,6 +78,9 @@
 		F46177BA2EB54E4D00B26797 /* content.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = content.css; path = ../../extension/content.css; sourceTree = SOURCE_ROOT; };
 		F46177BB2EB54E4D00B26797 /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = ../../extension/dist; sourceTree = SOURCE_ROOT; };
 		F46177BC2EB54E4D00B26797 /* options-dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "options-dist"; path = "../../extension/options-dist"; sourceTree = SOURCE_ROOT; };
+		F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOnboardingViewModel.swift; sourceTree = "<group>"; };
+		F4CA31A42EBDF91F009C23CF /* OnboardingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowView.swift; sourceTree = "<group>"; };
+		F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTheme.swift; sourceTree = "<group>"; };
 		FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftTabProject; path = ../../SwiftTabProject; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -104,6 +116,12 @@
 		F4251BE52EB52FE100D36FD4 /* Shared (App) */ = {
 			isa = PBXGroup;
 			children = (
+				F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */,
+				F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */,
+				F4CA31A42EBDF91F009C23CF /* OnboardingFlowView.swift */,
+				3F82703A4B8B4D9BA5611DE3 /* DashboardView.swift */,
+				42AC2B156421436D8B2693D0 /* TutorialView.swift */,
+				D911F63EA12E4B28B07B42ED /* WelcomeScreen.swift */,
 				F4251BEC2EB52FE100D36FD4 /* ViewController.swift */,
 				F4251BED2EB52FE200D36FD4 /* Assets.xcassets */,
 				F4251BE62EB52FE100D36FD4 /* Resources */,
@@ -289,6 +307,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				F4251C2B2EB52FE200D36FD4 /* ViewController.swift in Sources */,
+				4861A8397A6A463C9A67AF7D /* WelcomeScreen.swift in Sources */,
+				F4CA31A52EBDF91F009C23CF /* OnboardingFlowView.swift in Sources */,
+				929A359DC368460F863CE403 /* TutorialView.swift in Sources */,
+				1A43A214370C47F6B8A84783 /* DashboardView.swift in Sources */,
+				F4CA31A82EBFB820009C23CF /* BrandTheme.swift in Sources */,
+				F4CA31A62EBDF91F009C23CF /* MacOnboardingViewModel.swift in Sources */,
 				F4251C092EB52FE200D36FD4 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -463,7 +487,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -500,7 +524,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -542,7 +566,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -586,7 +610,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"-framework",
