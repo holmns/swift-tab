@@ -1,5 +1,6 @@
 import {
   resolveHudTitle,
+  type ContentCommandMessage,
   type HudItem,
   type HudMessage,
   type TabId,
@@ -167,6 +168,24 @@ const mruStore = (() => {
     schedulePersist();
   }
 
+  async function replace(windowId: WindowId, fromTabId: TabId, toTabId: TabId): Promise<boolean> {
+    await ensureLoaded();
+    ensure(windowId);
+    const stack = stacks.get(windowId);
+    if (!stack) return false;
+    const idx = stack.indexOf(fromTabId);
+    if (idx === -1) return false;
+    stack.splice(idx, 1);
+    let existingIdx = stack.indexOf(toTabId);
+    while (existingIdx !== -1) {
+      stack.splice(existingIdx, 1);
+      existingIdx = stack.indexOf(toTabId);
+    }
+    stack.splice(idx, 0, toTabId);
+    schedulePersist();
+    return true;
+  }
+
   async function backfill(windowId: WindowId): Promise<void> {
     await ensureLoaded();
     ensure(windowId);
@@ -248,6 +267,7 @@ const mruStore = (() => {
     touch,
     append,
     remove,
+    replace,
     backfill,
     seedAll,
     ensureSeeded,
@@ -257,11 +277,55 @@ const mruStore = (() => {
   };
 })();
 
+function createReplacementTracker() {
+  const pending = new Set<TabId>();
+  return {
+    track(tabId: TabId) {
+      pending.add(tabId);
+      let released = false;
+      return {
+        release() {
+          if (released) return;
+          pending.delete(tabId);
+          released = true;
+        },
+      };
+    },
+    consume(tabId: TabId): boolean {
+      if (!pending.has(tabId)) return false;
+      pending.delete(tabId);
+      return true;
+    },
+  };
+}
+
 const faviconStore = (() => {
-  const byHost = new Map<string, string | null>(); // hostname -> data URI | null
-  const byUrl = new Map<string, string | null>(); // favicon URL -> data URI | null
+  const storageArea = chrome.storage.local;
+  const STORAGE_KEY = "swiftTab.faviconCache";
+  const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+  const MAX_HOST_ENTRIES = 256;
+  const MAX_URL_ENTRIES = 256;
+  const PERSIST_DEBOUNCE_MS = 250;
+
+  interface CacheEntry {
+    dataUri: string | null;
+    expiresAt: number;
+  }
+
+  type SerializedEntries = Record<string, CacheEntry>;
+  interface SerializedCache {
+    hosts?: SerializedEntries;
+    urls?: SerializedEntries;
+  }
+
+  const byHost = new Map<string, CacheEntry>();
+  const byUrl = new Map<string, CacheEntry>();
   const pendingByHost = new Map<string, Promise<string | null>>();
   const pendingByUrl = new Map<string, Promise<string | null>>();
+  let loaded = false;
+  let loadPromise: Promise<void> | null = null;
+  let persistPromise: Promise<void> | null = null;
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   function extractHostname(rawUrl?: string | null): string | null {
     if (!rawUrl) return null;
@@ -271,6 +335,169 @@ const faviconStore = (() => {
     } catch {
       return null;
     }
+  }
+
+  function sanitizeEntry(input: unknown): CacheEntry | null {
+    if (!input || typeof input !== "object") return null;
+    const maybeValue = (input as { dataUri?: unknown }).dataUri;
+    const maybeExpiresAt = (input as { expiresAt?: unknown }).expiresAt;
+    const expiresAt = typeof maybeExpiresAt === "number" ? maybeExpiresAt : Number(maybeExpiresAt);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+    if (maybeValue !== null && typeof maybeValue !== "string") return null;
+    return {
+      dataUri: maybeValue ?? null,
+      expiresAt,
+    };
+  }
+
+  function sanitizeEntries(input: unknown, target: Map<string, CacheEntry>): void {
+    if (!input || typeof input !== "object") return;
+    for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+      const entry = sanitizeEntry(value);
+      if (!entry) continue;
+      target.set(key, entry);
+    }
+  }
+
+  function serializeEntries(map: Map<string, CacheEntry>): SerializedEntries {
+    const serialized: SerializedEntries = {};
+    const cutoff = Date.now();
+    for (const [key, entry] of map.entries()) {
+      if (entry.expiresAt <= cutoff) {
+        map.delete(key);
+        continue;
+      }
+      serialized[key] = { ...entry };
+    }
+    return serialized;
+  }
+
+  function pruneMap(map: Map<string, CacheEntry>, maxEntries: number): void {
+    const cutoff = Date.now();
+    for (const [key, entry] of map.entries()) {
+      if (entry.expiresAt <= cutoff) {
+        map.delete(key);
+      }
+    }
+    if (map.size <= maxEntries) return;
+    const orderedKeys = [...map.entries()]
+      .sort((a, b) => a[1].expiresAt - b[1].expiresAt)
+      .map(([key]) => key);
+    while (map.size > maxEntries && orderedKeys.length > 0) {
+      const key = orderedKeys.shift();
+      if (key) {
+        map.delete(key);
+      }
+    }
+  }
+
+  async function persistCache(): Promise<void> {
+    const payload: SerializedCache = {};
+    const hosts = serializeEntries(byHost);
+    const urls = serializeEntries(byUrl);
+    if (Object.keys(hosts).length > 0) payload.hosts = hosts;
+    if (Object.keys(urls).length > 0) payload.urls = urls;
+
+    await new Promise<void>((resolve) => {
+      const callback = () => {
+        if (chrome.runtime.lastError) {
+          console.warn("[SwiftTab] Failed to persist favicon cache", chrome.runtime.lastError);
+        }
+        resolve();
+      };
+      if (!payload.hosts && !payload.urls) {
+        storageArea.remove(STORAGE_KEY, callback);
+      } else {
+        storageArea.set({ [STORAGE_KEY]: payload }, callback);
+      }
+    });
+  }
+
+  function schedulePersist(): void {
+    if (persistTimer) return;
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      persistPromise = persistCache()
+        .catch((error) => console.warn("[SwiftTab] Persist favicon cache failed", error))
+        .finally(() => {
+          persistPromise = null;
+        });
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  async function flushPersist(): Promise<void> {
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    if (persistPromise) {
+      await persistPromise;
+      return;
+    }
+    persistPromise = persistCache()
+      .catch((error) => console.warn("[SwiftTab] Persist favicon cache failed", error))
+      .finally(() => {
+        persistPromise = null;
+      });
+    await persistPromise;
+  }
+
+  async function loadCache(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      storageArea.get(STORAGE_KEY, (items) => {
+        if (chrome.runtime.lastError) {
+          console.warn("[SwiftTab] Failed to load favicon cache", chrome.runtime.lastError);
+          resolve();
+          return;
+        }
+        const raw = items?.[STORAGE_KEY];
+        if (raw && typeof raw === "object") {
+          sanitizeEntries((raw as SerializedCache).hosts, byHost);
+          sanitizeEntries((raw as SerializedCache).urls, byUrl);
+        }
+        resolve();
+      });
+    });
+    pruneMap(byHost, MAX_HOST_ENTRIES);
+    pruneMap(byUrl, MAX_URL_ENTRIES);
+  }
+
+  async function ensureLoaded(): Promise<void> {
+    if (loaded) return;
+    if (!loadPromise) {
+      loadPromise = loadCache()
+        .catch((error) => console.warn("[SwiftTab] Failed to initialize favicon cache", error))
+        .finally(() => {
+          loaded = true;
+          loadPromise = null;
+        });
+    }
+    await loadPromise;
+  }
+
+  function readCache(map: Map<string, CacheEntry>, key: string): string | null | undefined {
+    const entry = map.get(key);
+    if (!entry) return undefined;
+    if (entry.expiresAt <= Date.now()) {
+      map.delete(key);
+      schedulePersist();
+      return undefined;
+    }
+    return entry.dataUri;
+  }
+
+  function writeCache(
+    map: Map<string, CacheEntry>,
+    key: string,
+    dataUri: string | null,
+    maxEntries: number
+  ): void {
+    map.set(key, {
+      dataUri,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+    pruneMap(map, maxEntries);
+    schedulePersist();
   }
 
   async function fetchAsDataURI(url: string): Promise<string> {
@@ -289,8 +516,9 @@ const faviconStore = (() => {
   }
 
   async function fetchAndCacheUrl(url: string): Promise<string | null> {
-    const cached = byUrl.get(url);
-    if (cached) return cached;
+    await ensureLoaded();
+    const cached = readCache(byUrl, url);
+    if (cached !== undefined) return cached;
 
     const pending = pendingByUrl.get(url);
     if (pending) return pending;
@@ -298,11 +526,11 @@ const faviconStore = (() => {
     const promise = (async () => {
       try {
         const dataUri = await fetchAsDataURI(url);
-        byUrl.set(url, dataUri);
+        writeCache(byUrl, url, dataUri, MAX_URL_ENTRIES);
         return dataUri;
       } catch (error) {
         console.warn("[SwiftTab] Failed to fetch favicon URL", url, error);
-        byUrl.set(url, null);
+        writeCache(byUrl, url, null, MAX_URL_ENTRIES);
         return null;
       } finally {
         pendingByUrl.delete(url);
@@ -314,8 +542,9 @@ const faviconStore = (() => {
   }
 
   async function resolveHostFavicon(hostname: string): Promise<string | null> {
-    const cached = byHost.get(hostname);
-    if (cached) return cached;
+    await ensureLoaded();
+    const cached = readCache(byHost, hostname);
+    if (cached !== undefined) return cached;
 
     const pending = pendingByHost.get(hostname);
     if (pending) return pending;
@@ -324,11 +553,11 @@ const faviconStore = (() => {
       const ddgFaviconUrl = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
       try {
         const dataUri = await fetchAsDataURI(ddgFaviconUrl);
-        byHost.set(hostname, dataUri);
+        writeCache(byHost, hostname, dataUri, MAX_HOST_ENTRIES);
         return dataUri;
       } catch (error) {
         console.warn("[SwiftTab] Failed to fetch DuckDuckGo favicon", hostname, error);
-        byHost.set(hostname, null);
+        writeCache(byHost, hostname, null, MAX_HOST_ENTRIES);
         return null;
       } finally {
         pendingByHost.delete(hostname);
@@ -340,12 +569,16 @@ const faviconStore = (() => {
   }
 
   async function resolve(tab: chrome.tabs.Tab & { id: number }): Promise<string | null> {
+    await ensureLoaded();
+
     if (tab.favIconUrl?.startsWith("data:")) {
       console.log("[SwiftTab] Using data URI favicon for tab", tab.id);
       return tab.favIconUrl;
     }
 
     if (tab.favIconUrl) {
+      const cachedByUrl = readCache(byUrl, tab.favIconUrl);
+      if (cachedByUrl !== undefined) return cachedByUrl;
       return fetchAndCacheUrl(tab.favIconUrl);
     }
 
@@ -357,14 +590,17 @@ const faviconStore = (() => {
       return null;
     }
 
-    const cachedByHost = byHost.get(hostname);
-    if (cachedByHost) return cachedByHost;
+    const cachedByHost = readCache(byHost, hostname);
+    if (cachedByHost !== undefined) return cachedByHost;
 
     return resolveHostFavicon(hostname);
   }
 
+  void ensureLoaded();
+
   return {
     resolve,
+    flushPersist,
   };
 })();
 
@@ -397,16 +633,31 @@ async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
 
   const icons = await Promise.all(orderedTabs.map((tab) => faviconStore.resolve(tab)));
 
-  return orderedTabs.map((tab, idx) => ({
-    id: tab.id,
-    title: resolveHudTitle({
-      title: tab.title,
-      url: tab.url ?? null,
-      pendingUrl: tab.pendingUrl ?? null,
-    }),
-    favIconUrl: icons[idx] ?? null,
-    pinned: tab.pinned,
-  }));
+  return orderedTabs.map((tab, idx) => {
+    const canonicalUrl = tab.url ?? tab.pendingUrl ?? null;
+    const hostname = (() => {
+      if (!canonicalUrl) return null;
+      try {
+        const url = new URL(canonicalUrl);
+        return url.hostname || null;
+      } catch {
+        return null;
+      }
+    })();
+
+    return {
+      id: tab.id,
+      title: resolveHudTitle({
+        title: tab.title,
+        url: tab.url ?? null,
+        pendingUrl: tab.pendingUrl ?? null,
+      }),
+      url: canonicalUrl,
+      hostname,
+      favIconUrl: icons[idx] ?? null,
+      pinned: tab.pinned,
+    } satisfies HudItem;
+  });
 }
 
 async function activateAt(windowId: WindowId, position: number): Promise<void> {
@@ -424,6 +675,8 @@ async function activateAt(windowId: WindowId, position: number): Promise<void> {
 }
 
 function registerListeners(): void {
+  const replacementTracker = createReplacementTracker();
+
   chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
     void mruStore.touch(windowId, tabId);
   });
@@ -437,8 +690,59 @@ function registerListeners(): void {
     await mruStore.backfill(windowId);
   });
 
+  chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
+    const guard = replacementTracker.track(removedTabId);
+    void (async () => {
+      try {
+        const tab = await chrome.tabs.get(addedTabId);
+        if (tab.windowId === undefined) return;
+        const replaced = await mruStore.replace(tab.windowId, removedTabId, addedTabId);
+        if (!replaced) {
+          if (tab.active) {
+            await mruStore.touch(tab.windowId, addedTabId);
+          } else {
+            await mruStore.append(tab.windowId, addedTabId);
+          }
+        }
+      } catch (error) {
+        console.warn(
+          "[SwiftTab] Failed to handle tab replacement",
+          { addedTabId, removedTabId },
+          error
+        );
+      } finally {
+        guard.release();
+      }
+    })();
+  });
+
   chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-    void mruStore.remove(removeInfo.windowId, tabId);
+    // Preserve MRU focus order when the currently active tab is closed.
+    void (async () => {
+      const { windowId, isWindowClosing } = removeInfo;
+      const stack = mruStore.getStack(windowId);
+      const closedActiveTab = stack[0] === tabId;
+
+      await mruStore.remove(windowId, tabId);
+      if (replacementTracker.consume(tabId)) {
+        return;
+      }
+      if (isWindowClosing || !closedActiveTab) {
+        return;
+      }
+
+      const fallbackTabId = mruStore.getStack(windowId)[0];
+      if (typeof fallbackTabId !== "number") return;
+
+      try {
+        await chrome.tabs.update(fallbackTabId, { active: true });
+      } catch (error) {
+        const message = (error as { message?: string } | undefined)?.message ?? "";
+        if (!message.includes("No tab with id")) {
+          console.warn("[SwiftTab] Failed to activate MRU tab after close", fallbackTabId, error);
+        }
+      }
+    })();
   });
 
   chrome.tabs.onCreated.addListener((tab) => {
@@ -481,7 +785,9 @@ function registerListeners(): void {
 
   if (chrome.runtime.onSuspend) {
     chrome.runtime.onSuspend.addListener(() => {
-      void mruStore.flushPersist();
+      void (async () => {
+        await Promise.all([mruStore.flushPersist(), faviconStore.flushPersist()]);
+      })();
     });
   }
 
@@ -503,6 +809,14 @@ function registerListeners(): void {
       void (async () => {
         const win = await chrome.windows.getCurrent();
         if (win?.id !== undefined) {
+          if (typeof msg.tabId === "number") {
+            try {
+              await chrome.tabs.update(msg.tabId, { active: true });
+            } catch {
+              // tab may no longer exist; ignore
+            }
+            return;
+          }
           await activateAt(win.id, Math.max(0, msg.index ?? 1));
         }
       })();
@@ -510,6 +824,25 @@ function registerListeners(): void {
 
     return false;
   });
+
+  if (chrome.commands) {
+    chrome.commands.onCommand.addListener(async (command) => {
+      if (command !== "swift-tab-toggle-search") return;
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!activeTab?.id) return;
+      try {
+        await chrome.tabs.sendMessage(activeTab.id, {
+          type: "hud-toggle-search",
+        } satisfies ContentCommandMessage);
+      } catch (error) {
+        const message = (error as { message?: string } | undefined)?.message;
+        if (message && message.includes("Receiving end does not exist")) {
+          return;
+        }
+        console.warn("[SwiftTab] Failed to notify content script", error);
+      }
+    });
+  }
 }
 
 registerListeners();
