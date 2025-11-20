@@ -102,6 +102,17 @@ function App() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const disableContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("contextmenu", disableContextMenu);
+    return () => {
+      window.removeEventListener("contextmenu", disableContextMenu);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const root = document.documentElement;
     const applyTheme = (isDark: boolean) => {
       root.classList.toggle("dark", isDark);
