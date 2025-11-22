@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, normalizeHudSettings, type HudSettings } from "./index";
+import { DEFAULT_SETTINGS, normalizeHudSettings, type HudSettings } from "./index.js";
 
 const NATIVE_HOST_NAME = "com.holmns.swifttab";
 const SUBSCRIPTION_TIMEOUT_MS = 250;

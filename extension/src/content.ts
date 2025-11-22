@@ -8,7 +8,7 @@ import {
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
-} from "./shared/index";
+} from "./shared/index.js";
 
 type ModifierKeyCode = "AltLeft" | "AltRight";
 type SessionMode = "altTab" | "command" | null;
