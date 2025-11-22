@@ -169,7 +169,7 @@ struct ShortcutSetting: Equatable {
         return trimmed.lowercased()
     }
 
-    private var keyDisplayLabel: String {
+    var keyDisplayLabel: String {
         let normalized = normalizedKey
         switch normalized {
         case "space":

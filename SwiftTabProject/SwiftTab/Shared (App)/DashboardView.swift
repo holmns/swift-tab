@@ -61,24 +61,13 @@ struct DashboardView: View {
                 }
             }
 
-            if viewModel.isCheckingExtensionState {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Checking Safari extension status…")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             HStack(spacing: 12) {
                 Button {
                     viewModel.openSafariPreferences()
                 } label: {
                     if viewModel.isOpeningPreferences {
                         ProgressView()
-                            .controlSize(.regular)
-                            .frame(width: 16, height: 16)
+                            .controlSize(.small)
                         Text("Opening Safari…")
                     } else {
                         Text("Open Safari Settings")
@@ -89,6 +78,16 @@ struct DashboardView: View {
 
                 Button("Refresh Status", action: viewModel.refreshExtensionState)
                     .disabled(viewModel.isCheckingExtensionState)
+                
+                if viewModel.isCheckingExtensionState {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Checking Safari extension status…")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .padding(24)
@@ -149,7 +148,7 @@ private struct HudSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("SwiftTab Settings")
-                .font(.title3.weight(.semibold))
+                .font(.title.weight(.bold))
             
             VStack(alignment: .leading, spacing: 12) {
                 Text("Layout")
@@ -250,7 +249,7 @@ private struct HudSettingsCard: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity)
                 }
             }
         }
@@ -264,10 +263,10 @@ private struct HudSettingsCard: View {
                     .fill(.ultraThinMaterial)
                 )
         )
-        .onChange(of: viewModel.switchShortcut) { _ in
+        .onChange(of: viewModel.switchShortcut) {
             handleDuplicateIfNeeded()
         }
-        .onChange(of: viewModel.searchShortcut) { _ in
+        .onChange(of: viewModel.searchShortcut) {
             handleDuplicateIfNeeded()
         }
         .onAppear {
@@ -280,10 +279,14 @@ private struct HudSettingsCard: View {
 
     private func handleDuplicateIfNeeded() {
         guard viewModel.switchShortcut == viewModel.searchShortcut else { return }
-        showDuplicateWarning = true
+        withAnimation(.spring(duration: 0.2)) {
+            showDuplicateWarning = true
+        }
         duplicateWarningTask?.cancel()
         let task = DispatchWorkItem {
-            showDuplicateWarning = false
+            withAnimation() {
+                showDuplicateWarning = false
+            }
         }
         duplicateWarningTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
@@ -328,20 +331,28 @@ private struct ShortcutRecorderField: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "keyboard")
-                    .foregroundStyle(.secondary)
-                Text(shortcut.displayText)
-                    .font(.body.monospaced())
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            HStack(spacing: 6) {
+                Group {
+                    Text("⌃")
+                        .foregroundStyle(shortcut.ctrl ? .primary : .quaternary)
+                    Text("⌥")
+                        .foregroundStyle(shortcut.alt ? .primary : .quaternary)
+                    Text("⇧")
+                        .foregroundStyle(shortcut.shift ? .primary : .quaternary)
+                    Text("⌘")
+                        .foregroundStyle(shortcut.meta ? .primary : .quaternary)
+                }
+                .font(.headline)
+                Text(shortcut.keyDisplayLabel)
+                    .font(.body.bold())
+
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
             .frame(minWidth: 180, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(.ultraThinMaterial)
             )
 
             Spacer()
@@ -357,7 +368,7 @@ private struct ShortcutRecorderField: View {
                     Image(systemName: isRecording ? "dot.radiowaves.left.and.right" : "pencil")
                     Text(isRecording ? "Recording…" : "Change")
                 }
-                .frame(minWidth: 120)
+                .frame(minWidth: 120, minHeight: 24)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -368,7 +379,7 @@ private struct ShortcutRecorderField: View {
                 Text("Press a shortcut, Esc to cancel")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.trailing, 6)
+                    .offset(y: 28)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
         }
