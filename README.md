@@ -1,6 +1,6 @@
-# SwiftTab – Safari MRU Tab Switcher
+# SwiftTab
 
-SwiftTab brings **Most Recently Used (MRU) tab switching** to Safari, mirroring the feel of macOS app switching with ⌥ (Option) + Tab.
+SwiftTab brings **Most Recently Used (MRU) tab switching** to Safari, mirroring the feel of macOS app switching.
 
 This repository contains:
 
@@ -12,19 +12,8 @@ This repository contains:
 - 🔁 **MRU ordering** — Cycle through tabs in the order you last viewed them.
 - ⚡️ **Heads-up display** — Minimal overlay shows tab titles and favicons while you switch.
 - 🔍 **Fuzzy search HUD** — Toggle a searchable list of tabs with your own shortcut.
-- 🧭 **Customizable delay** — Tune how long you hold ⌥ before the HUD appears.
+- 🧭 **Customizable settings** — Tune settings and define both switch/search shortcuts in the macOS app.
 - 🛠 **Native packaging** — Delivered as a signed Safari app extension, optimized for performance and battery usage.
-
-## 🎮 Shortcuts
-
-| Action                        | Shortcut / Location                               |
-| ----------------------------- | ------------------------------------------------- |
-| Switch forward                | ⌥ + Tab                                           |
-| Switch backward               | ⌥ + ⇧ + Tab                                       |
-| Toggle search HUD             | Assign in Safari → Extensions → SwiftTab → Shortcuts |
-| Move selection (search HUD)   | ↑ / ↓, ⇥ / ⇧⇥, or ⌃J / ⌃K                         |
-
-The search HUD behaves as a toggle: press your custom shortcut (default suggestion is ⌘E / Ctrl+E) to open it, press it again or hit Escape to close.
 
 ## 🚀 Getting Started
 
@@ -33,6 +22,7 @@ The search HUD behaves as a toggle: press your custom shortcut (default suggesti
 3. Select the `SwiftTab (App)` scheme and run it.  
    Xcode builds the helper app and installs the Safari extension.
 4. When Safari prompts you, enable **SwiftTab** from Safari Settings → Extensions.
+5. Open the SwiftTab app and set your switch/search shortcuts in **Settings**.
 
 During development you can iterate on the WebExtension in `/extension`. Rebuilding the Xcode target bundles the latest assets.
 
@@ -47,7 +37,7 @@ The background service worker reads MRU stacks from storage on launch and deboun
 
 ## 🛠 Settings
 
-Adjust SwiftTab’s options through Safari Settings → Extensions → SwiftTab → Settings….
+Adjust SwiftTab’s options through Safari Pop-up settings or in the SwiftTab app
 
 ## Credit
 
