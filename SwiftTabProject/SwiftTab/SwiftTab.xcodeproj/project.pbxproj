@@ -31,6 +31,9 @@
 		F4CA31A62EBDF91F009C23CF /* MacOnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */; };
 		F4CA31A82EBFB820009C23CF /* BrandTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */; };
 		FE4E8A0B2FF07E5100C8B1A1 /* SwiftTabProject in Resources */ = {isa = PBXBuildFile; fileRef = FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */; };
+		FE1110012FF1300100AAAAAA /* HudSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1110112FF1300100AAAAAA /* HudSettingsModels.swift */; };
+		FE1110022FF1300100AAAAAA /* HudSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1110122FF1300100AAAAAA /* HudSettingsStore.swift */; };
+		FE1110032FF1300100AAAAAA /* HudSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1110132FF1300100AAAAAA /* HudSettingsViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +87,9 @@
 		FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftTabProject; path = ../../SwiftTabProject; sourceTree = SOURCE_ROOT; };
 		FE78A0012FF0B00100AAAAAA /* SwiftTab.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftTab.entitlements; sourceTree = "<group>"; };
 		FE78A0022FF0B00100AAAAAB /* SwiftTabExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftTabExtension.entitlements; sourceTree = "<group>"; };
+		FE1110112FF1300100AAAAAA /* HudSettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HudSettingsModels.swift; sourceTree = "<group>"; };
+		FE1110122FF1300100AAAAAA /* HudSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HudSettingsStore.swift; sourceTree = "<group>"; };
+		FE1110132FF1300100AAAAAA /* HudSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HudSettingsViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +132,7 @@
 				D911F63EA12E4B28B07B42ED /* WelcomeScreen.swift */,
 				F4251BEC2EB52FE100D36FD4 /* ViewController.swift */,
 				F4251BED2EB52FE200D36FD4 /* Assets.xcassets */,
+				FE1110202FF1300100AAAAAA /* Settings */,
 				F4251BE62EB52FE100D36FD4 /* Resources */,
 			);
 			path = "Shared (App)";
@@ -149,6 +156,16 @@
 				F4251BEF2EB52FE200D36FD4 /* SafariWebExtensionHandler.swift */,
 			);
 			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		FE1110202FF1300100AAAAAA /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				FE1110112FF1300100AAAAAA /* HudSettingsModels.swift */,
+				FE1110122FF1300100AAAAAA /* HudSettingsStore.swift */,
+				FE1110132FF1300100AAAAAA /* HudSettingsViewModel.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		F4251BF52EB52FE200D36FD4 /* Products */ = {
@@ -315,6 +332,9 @@
 				F4CA31A52EBDF91F009C23CF /* OnboardingFlowView.swift in Sources */,
 				929A359DC368460F863CE403 /* TutorialView.swift in Sources */,
 				1A43A214370C47F6B8A84783 /* DashboardView.swift in Sources */,
+				FE1110012FF1300100AAAAAA /* HudSettingsModels.swift in Sources */,
+				FE1110022FF1300100AAAAAA /* HudSettingsStore.swift in Sources */,
+				FE1110032FF1300100AAAAAA /* HudSettingsViewModel.swift in Sources */,
 				F4CA31A82EBFB820009C23CF /* BrandTheme.swift in Sources */,
 				F4CA31A62EBDF91F009C23CF /* MacOnboardingViewModel.swift in Sources */,
 				F4251C092EB52FE200D36FD4 /* AppDelegate.swift in Sources */,
