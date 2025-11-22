@@ -8,12 +8,12 @@ import {
   type HudSettings,
   type TabId,
   type WindowId,
-} from "./shared/index";
+} from "./shared/index.js";
 import {
   readNativeSettings,
   subscribeToNativeSettings,
   writeNativeSettings,
-} from "./shared/nativeMessaging";
+} from "./shared/nativeMessaging.js";
 
 const mruStore = (() => {
   const stacks = new Map<WindowId, TabId[]>();
