@@ -28,16 +28,7 @@ struct DashboardView: View {
             .padding(36)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color(nsColor: .underPageBackgroundColor)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(Color.black)
         .task {
             viewModel.refreshExtensionState()
         }
@@ -102,7 +93,7 @@ struct DashboardView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }
 
@@ -131,14 +122,7 @@ private struct EnablementStepsCard: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.7))
-                )
-        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }
 
@@ -252,7 +236,7 @@ private struct HudSettingsCard: View {
                 .strokeBorder(Color.secondary.opacity(0.1), lineWidth: 1)
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(.thinMaterial)
+                        .fill(.ultraThinMaterial)
                 )
         )
     }
