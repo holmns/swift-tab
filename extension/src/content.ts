@@ -793,8 +793,6 @@ type SessionMode = "altTab" | "command" | null;
         allowExtraShift: !state.settings.switchShortcut.shift,
       });
 
-      console.log({ isSearch: isSearchShortcut, isSwitch: isSwitchShortcut, event: event });
-
       if (isSearchShortcut) {
         event.preventDefault();
         event.stopImmediatePropagation?.();

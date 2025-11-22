@@ -58,6 +58,7 @@ final class HudSettingsStore {
     }
 
     func save(_ settings: HudSettingsState) {
+        guard settings.switchShortcut != settings.searchShortcut else { return }
         defaults.set(settings.enabled, forKey: HudSettingsDefaults.enabledKey)
         defaults.set(clampDelay(settings.hudDelay), forKey: HudSettingsDefaults.delayKey)
         defaults.set(settings.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)

@@ -12,6 +12,16 @@ export interface ShortcutSetting {
   shift: boolean;
 }
 
+export function shortcutsEqual(a: ShortcutSetting, b: ShortcutSetting): boolean {
+  return (
+    a.key === b.key &&
+    a.alt === b.alt &&
+    a.ctrl === b.ctrl &&
+    a.meta === b.meta &&
+    a.shift === b.shift
+  );
+}
+
 export interface HudSettings {
   enabled: boolean;
   hudDelay: number;
