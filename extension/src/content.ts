@@ -8,9 +8,9 @@ import {
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
+  type ShortcutSetting,
 } from "./shared/index.js";
 
-type ModifierKeyCode = "AltLeft" | "AltRight";
 type SessionMode = "altTab" | "command" | null;
 
 (() => {
@@ -35,7 +35,12 @@ type SessionMode = "altTab" | "command" | null;
     hudTimer: null as ReturnType<typeof setTimeout> | null,
     cycled: false,
     settings: { ...DEFAULT_SETTINGS },
-    optionKeys: new Set<ModifierKeyCode>(),
+    modifiers: {
+      alt: false,
+      ctrl: false,
+      meta: false,
+      shift: false,
+    },
     sessionActive: false,
     initializing: false,
     pendingMoves: 0,
@@ -147,6 +152,135 @@ type SessionMode = "altTab" | "command" | null;
     }
     if (state.visible) {
       render();
+    }
+  }
+
+  function normalizeShortcutKey(value: string | null | undefined): string {
+    if (!value) return "";
+    if (value === " ") return "space";
+    if (value === "\u00a0") return "space";
+
+    const rawLower = value.toLowerCase();
+    if (rawLower === "spacebar" || rawLower === "space") return "space";
+    if (value === "\t" || rawLower === "tab") return "tab";
+
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) return "";
+    if (trimmed === "spacebar" || trimmed === "space") return "space";
+    if (trimmed === "\t" || trimmed === "tab") return "tab";
+    return trimmed;
+  }
+
+  function normalizeCodeKey(code: string | null | undefined): string {
+    if (!code) return "";
+    const lower = code.toLowerCase();
+    if (lower === "space") return "space";
+    if (lower === "tab") return "tab";
+    if (lower.startsWith("key") && code.length === 4) {
+      return code.slice(3).toLowerCase(); // KeyA -> a
+    }
+    if (lower.startsWith("digit") && code.length === 6) {
+      return code.slice(5); // Digit1 -> 1
+    }
+    return "";
+  }
+
+  function normalizeEventKey(event: KeyboardEvent): string {
+    const fromCode = normalizeCodeKey(event.code);
+    if (fromCode) return fromCode;
+    const normalizedKey = normalizeShortcutKey(event.key);
+    if (normalizedKey) return normalizedKey;
+    if (event.keyCode === 32 || event.which === 32) return "space";
+    if (event.keyCode === 9 || event.which === 9) return "tab";
+    return "";
+  }
+
+  function syncModifierState(event: KeyboardEvent): void {
+    state.modifiers.alt = event.altKey;
+    state.modifiers.ctrl = event.ctrlKey;
+    state.modifiers.meta = event.metaKey;
+    state.modifiers.shift = event.shiftKey;
+  }
+
+  function requiredSwitchModifiersHeld(): boolean {
+    const shortcut = state.settings.switchShortcut;
+    if (shortcut.alt && !state.modifiers.alt) return false;
+    if (shortcut.ctrl && !state.modifiers.ctrl) return false;
+    if (shortcut.meta && !state.modifiers.meta) return false;
+    if (shortcut.shift && !state.modifiers.shift) return false;
+    return true;
+  }
+
+  function shortcutMatches(
+    event: KeyboardEvent,
+    shortcut: ShortcutSetting,
+    options?: { allowExtraShift?: boolean }
+  ): boolean {
+    const targetKey = normalizeShortcutKey(shortcut.key);
+    if (!targetKey) return false;
+    const eventKey = normalizeEventKey(event);
+    if (eventKey !== targetKey) return false;
+    if (!!shortcut.alt !== !!event.altKey) return false;
+    if (!!shortcut.ctrl !== !!event.ctrlKey) return false;
+    if (!!shortcut.meta !== !!event.metaKey) return false;
+    if (shortcut.shift) {
+      if (!event.shiftKey) return false;
+    } else if (!options?.allowExtraShift && event.shiftKey) {
+      return false;
+    }
+    return true;
+  }
+
+  function resolveSwitchDelta(event: KeyboardEvent): number {
+    const requiresShift = state.settings.switchShortcut.shift;
+    if (event.shiftKey && !requiresShift) {
+      return -1;
+    }
+    return 1;
+  }
+
+  async function handleSwitchShortcut(event: KeyboardEvent): Promise<void> {
+    event.preventDefault();
+    event.stopImmediatePropagation?.();
+    event.stopPropagation();
+
+    const delta = resolveSwitchDelta(event);
+
+    if (!state.sessionActive) {
+      state.pendingMoves += delta;
+      if (state.initializing) return;
+
+      state.initializing = true;
+      const fetched = await requestItems();
+      state.initializing = false;
+
+      if (fetched.length < 1) {
+        state.pendingMoves = 0;
+        state.sessionActive = false;
+        state.mode = null;
+        return;
+      }
+
+      state.items = fetched;
+      state.index = 0;
+      state.sessionActive = true;
+      state.mode = "altTab";
+
+      cancelHudTimer();
+      state.hudTimer = setTimeout(() => {
+        if (requiredSwitchModifiersHeld() && state.sessionActive && !state.visible) {
+          render();
+          show();
+        }
+        state.hudTimer = null;
+      }, state.settings.hudDelay);
+
+      state.cycled = true;
+      moveSelection(state.pendingMoves);
+      state.pendingMoves = 0;
+    } else {
+      state.cycled = true;
+      moveSelection(delta);
     }
   }
 
@@ -516,7 +650,6 @@ type SessionMode = "altTab" | "command" | null;
     state.isFetchingCommand = true;
 
     cancelHudTimer();
-    state.optionKeys.clear();
     state.sessionActive = false;
     state.pendingMoves = 0;
     state.cycled = false;
@@ -578,28 +711,23 @@ type SessionMode = "altTab" | "command" | null;
     hide();
   }
 
-  function markOptionHeld(event: KeyboardEvent): void {
-    if (event.code === "AltLeft" || event.code === "AltRight") {
-      state.optionKeys.add(event.code);
-    }
-  }
-
-  function releaseOption(event?: KeyboardEvent): void {
-    if (event?.code === "AltLeft" || event?.code === "AltRight") {
-      state.optionKeys.delete(event.code);
-    } else if (!event?.altKey) {
-      state.optionKeys.clear();
-    }
-  }
-
-  function optionIsHeld(): boolean {
-    return state.optionKeys.has("AltLeft") || state.optionKeys.has("AltRight");
-  }
-
   function cancelHudTimer(): void {
     if (!state.hudTimer) return;
     clearTimeout(state.hudTimer);
     state.hudTimer = null;
+  }
+
+  function toggleSearchHud(): void {
+    if (state.mode === "command") {
+      if (state.isFetchingCommand) {
+        state.cancelCommandToggle = true;
+        return;
+      }
+      hide();
+      return;
+    }
+    state.cancelCommandToggle = false;
+    void startCommandSession();
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -629,7 +757,25 @@ type SessionMode = "altTab" | "command" | null;
         nextSettings.enabled = maybeEnabled;
       }
     }
-    applySettings(nextSettings);
+    if (Object.prototype.hasOwnProperty.call(changes, "goToLastTabOnClose")) {
+      const maybeValue = changes.goToLastTabOnClose?.newValue;
+      if (typeof maybeValue === "boolean") {
+        nextSettings.goToLastTabOnClose = maybeValue;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "switchShortcut")) {
+      nextSettings.switchShortcut = normalizeHudSettings(
+        { switchShortcut: changes.switchShortcut?.newValue as ShortcutSetting },
+        state.settings
+      ).switchShortcut;
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "searchShortcut")) {
+      nextSettings.searchShortcut = normalizeHudSettings(
+        { searchShortcut: changes.searchShortcut?.newValue as ShortcutSetting },
+        state.settings
+      ).searchShortcut;
+    }
+    applySettings(normalizeHudSettings(nextSettings, state.settings));
     if (state.mode === "command") {
       updateFilter();
     }
@@ -638,9 +784,25 @@ type SessionMode = "altTab" | "command" | null;
   window.addEventListener(
     "keydown",
     async (event: KeyboardEvent) => {
+      syncModifierState(event);
       if (!state.settings.enabled) {
         return;
       }
+      const isSearchShortcut = shortcutMatches(event, state.settings.searchShortcut);
+      const isSwitchShortcut = shortcutMatches(event, state.settings.switchShortcut, {
+        allowExtraShift: !state.settings.switchShortcut.shift,
+      });
+
+      console.log({ isSearch: isSearchShortcut, isSwitch: isSwitchShortcut, event: event });
+
+      if (isSearchShortcut) {
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+        event.stopPropagation();
+        toggleSearchHud();
+        return;
+      }
+
       if (state.mode === "command" && state.visible) {
         const searchFocused = state.search !== null && event.target === state.search;
         const keyLower = event.key.toLowerCase();
@@ -683,54 +845,8 @@ type SessionMode = "altTab" | "command" | null;
         return;
       }
 
-      if (event.key === "Alt") {
-        markOptionHeld(event);
-        return;
-      }
-
-      if (event.key.toLowerCase() === "tab" && optionIsHeld()) {
-        event.preventDefault();
-        event.stopImmediatePropagation?.();
-        event.stopPropagation();
-
-        const delta = event.shiftKey ? -1 : 1;
-
-        if (!state.sessionActive) {
-          state.pendingMoves += delta;
-          if (state.initializing) return;
-
-          state.initializing = true;
-          const fetched = await requestItems();
-          state.initializing = false;
-
-          if (fetched.length < 1) {
-            state.pendingMoves = 0;
-            state.sessionActive = false;
-            state.mode = null;
-            return;
-          }
-
-          state.items = fetched;
-          state.index = 0;
-          state.sessionActive = true;
-          state.mode = "altTab";
-
-          cancelHudTimer();
-          state.hudTimer = setTimeout(() => {
-            if (optionIsHeld() && state.sessionActive && !state.visible) {
-              render();
-              show();
-            }
-            state.hudTimer = null;
-          }, state.settings.hudDelay);
-
-          state.cycled = true;
-          moveSelection(state.pendingMoves);
-          state.pendingMoves = 0;
-        } else {
-          state.cycled = true;
-          moveSelection(delta);
-        }
+      if (isSwitchShortcut) {
+        await handleSwitchShortcut(event);
       }
     },
     true
@@ -739,6 +855,7 @@ type SessionMode = "altTab" | "command" | null;
   window.addEventListener(
     "keyup",
     (event: KeyboardEvent) => {
+      syncModifierState(event);
       if (!state.settings.enabled) {
         return;
       }
@@ -750,13 +867,9 @@ type SessionMode = "altTab" | "command" | null;
         return;
       }
 
-      if (event.key === "Alt") {
-        releaseOption(event);
-      }
-
-      if (!optionIsHeld()) {
+      if (!requiredSwitchModifiersHeld()) {
         cancelHudTimer();
-        if (state.cycled && state.mode === "altTab") {
+        if (state.cycled && state.mode === "altTab" && state.sessionActive) {
           void finalizeSelection();
         } else if (state.mode === "altTab" && state.visible) {
           hide();
@@ -779,16 +892,7 @@ type SessionMode = "altTab" | "command" | null;
       return;
     }
     if (message.type === "hud-toggle-search") {
-      if (state.mode === "command") {
-        if (state.isFetchingCommand) {
-          state.cancelCommandToggle = true;
-          return;
-        }
-        hide();
-        return;
-      }
-      state.cancelCommandToggle = false;
-      void startCommandSession();
+      toggleSearchHud();
     }
   });
 

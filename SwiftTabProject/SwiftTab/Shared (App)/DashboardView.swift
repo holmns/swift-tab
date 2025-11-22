@@ -178,6 +178,23 @@ private struct HudSettingsCard: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Shortcuts")
+                    .font(.headline)
+                ShortcutRecorderRow(
+                    title: "Tab switcher",
+                    subtitle: "Hold the modifiers to keep the HUD visible, release to confirm the highlighted tab.",
+                    shortcut: $viewModel.switchShortcut,
+                    defaultShortcut: HudSettingsDefaults.defaultSwitchShortcut
+                )
+                ShortcutRecorderRow(
+                    title: "Search tabs",
+                    subtitle: "Opens the searchable HUD immediately.",
+                    shortcut: $viewModel.searchShortcut,
+                    defaultShortcut: HudSettingsDefaults.defaultSearchShortcut
+                )
+            }
             
             VStack(alignment: .leading, spacing: 10) {
                 Button {
@@ -220,7 +237,7 @@ private struct HudSettingsCard: View {
                                     .frame(width: 70, alignment: .trailing)
                                     .foregroundStyle(.secondary)
                             }
-                            Text("Delay before the HUD hides after releasing ⌥ during tab switching.")
+                            Text("Delay before the HUD shows after holding ⌥ during tab switching.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -239,6 +256,123 @@ private struct HudSettingsCard: View {
                         .fill(.ultraThinMaterial)
                 )
         )
+    }
+}
+
+private struct ShortcutRecorderRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var shortcut: ShortcutSetting
+    let defaultShortcut: ShortcutSetting
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                Spacer()
+                Button {
+                    shortcut = defaultShortcut
+                } label: {
+                    Text("Reset")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            ShortcutRecorderField(shortcut: $shortcut)
+
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct ShortcutRecorderField: View {
+    @Binding var shortcut: ShortcutSetting
+    @State private var isRecording = false
+    @State private var eventMonitor: Any?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "keyboard")
+                    .foregroundStyle(.secondary)
+                Text(shortcut.displayText)
+                    .font(.body.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .frame(minWidth: 180, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.05))
+            )
+
+            Spacer()
+
+            Button {
+                if isRecording {
+                    stopRecording()
+                } else {
+                    startRecording()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isRecording ? "dot.radiowaves.left.and.right" : "pencil")
+                    Text(isRecording ? "Recording…" : "Change")
+                }
+                .frame(minWidth: 120)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 4)
+        .overlay(alignment: .trailing) {
+            if isRecording {
+                Text("Press a shortcut, Esc to cancel")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 6)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .onDisappear {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        stopRecording()
+        isRecording = true
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handle(event: event)
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
+        }
+        isRecording = false
+    }
+
+    private func handle(event: NSEvent) -> NSEvent? {
+        if event.keyCode == 53 { // Escape cancels recording.
+            stopRecording()
+            return nil
+        }
+        guard let captured = ShortcutSetting.from(event: event) else {
+            return nil
+        }
+        shortcut = captured
+        stopRecording()
+        return nil
     }
 }
 

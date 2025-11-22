@@ -21,8 +21,61 @@ private enum NativeSettingsKeys {
     static let layoutKey = "swiftTab.hudSettings.layout"
     static let themeKey = "swiftTab.hudSettings.theme"
     static let goToLastTabOnCloseKey = "swiftTab.hudSettings.goToLastTabOnClose"
+    static let switchShortcutKey = "swiftTab.hudSettings.switchShortcut"
+    static let searchShortcutKey = "swiftTab.hudSettings.searchShortcut"
     static let updatedKey = "swiftTab.hudSettings.updatedAt"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
+}
+
+private enum NativeDefaults {
+    static let switchShortcut = NativeShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
+    static let searchShortcut = NativeShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
+}
+
+private struct NativeShortcutSetting {
+    var key: String
+    var alt: Bool
+    var ctrl: Bool
+    var meta: Bool
+    var shift: Bool
+
+    var normalizedKey: String {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed == "spacebar" || trimmed == " " { return "space" }
+        if trimmed == "\t" { return "tab" }
+        return trimmed
+    }
+
+    func normalized(fallback: NativeShortcutSetting) -> NativeShortcutSetting {
+        let normalized = normalizedKey
+        if normalized.isEmpty {
+            return fallback
+        }
+        return NativeShortcutSetting(key: normalized, alt: alt, ctrl: ctrl, meta: meta, shift: shift)
+    }
+
+    var dictionary: [String: Any] {
+        [
+            "key": normalizedKey,
+            "alt": alt,
+            "ctrl": ctrl,
+            "meta": meta,
+            "shift": shift
+        ]
+    }
+
+    static func parse(_ raw: Any?, fallback: NativeShortcutSetting) -> NativeShortcutSetting {
+        guard let dict = raw as? [String: Any] else {
+            return fallback
+        }
+        let key = dict["key"] as? String ?? fallback.key
+        let alt = dict["alt"] as? Bool ?? fallback.alt
+        let ctrl = dict["ctrl"] as? Bool ?? fallback.ctrl
+        let meta = dict["meta"] as? Bool ?? fallback.meta
+        let shift = dict["shift"] as? Bool ?? fallback.shift
+        let parsed = NativeShortcutSetting(key: key, alt: alt, ctrl: ctrl, meta: meta, shift: shift)
+        return parsed.normalized(fallback: fallback)
+    }
 }
 
 private struct NativeHudSettings {
@@ -31,6 +84,8 @@ private struct NativeHudSettings {
     var layout: String
     var theme: String
     var goToLastTabOnClose: Bool
+    var switchShortcut: NativeShortcutSetting
+    var searchShortcut: NativeShortcutSetting
 }
 
 private final class NativeSettingsStore {
@@ -52,13 +107,23 @@ private final class NativeSettingsStore {
         let layout = defaults.string(forKey: NativeSettingsKeys.layoutKey) ?? "vertical"
         let theme = defaults.string(forKey: NativeSettingsKeys.themeKey) ?? "system"
         let goToLastTabOnClose = defaults.object(forKey: NativeSettingsKeys.goToLastTabOnCloseKey) as? Bool ?? true
+        let switchShortcut = NativeShortcutSetting.parse(
+            defaults.object(forKey: NativeSettingsKeys.switchShortcutKey),
+            fallback: NativeDefaults.switchShortcut
+        )
+        let searchShortcut = NativeShortcutSetting.parse(
+            defaults.object(forKey: NativeSettingsKeys.searchShortcutKey),
+            fallback: NativeDefaults.searchShortcut
+        )
 
         return NativeHudSettings(
             enabled: enabled,
             hudDelay: clampDelay(hudDelay),
             layout: layout,
             theme: theme,
-            goToLastTabOnClose: goToLastTabOnClose
+            goToLastTabOnClose: goToLastTabOnClose,
+            switchShortcut: switchShortcut,
+            searchShortcut: searchShortcut
         )
     }
 
@@ -68,6 +133,18 @@ private final class NativeSettingsStore {
         defaults.set(settings.layout, forKey: NativeSettingsKeys.layoutKey)
         defaults.set(settings.theme, forKey: NativeSettingsKeys.themeKey)
         defaults.set(settings.goToLastTabOnClose, forKey: NativeSettingsKeys.goToLastTabOnCloseKey)
+        defaults.set(
+            settings.switchShortcut.normalized(
+                fallback: NativeDefaults.switchShortcut
+            ).dictionary,
+            forKey: NativeSettingsKeys.switchShortcutKey
+        )
+        defaults.set(
+            settings.searchShortcut.normalized(
+                fallback: NativeDefaults.searchShortcut
+            ).dictionary,
+            forKey: NativeSettingsKeys.searchShortcutKey
+        )
         defaults.set(Date().timeIntervalSince1970, forKey: NativeSettingsKeys.updatedKey)
         defaults.synchronize()
         DistributedNotificationCenter.default().post(name: NativeSettingsKeys.changedNotification, object: nil)
@@ -142,7 +219,15 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 hudDelay: parsedDelay,
                 layout: incoming["layout"] as? String ?? current.layout,
                 theme: incoming["theme"] as? String ?? current.theme,
-                goToLastTabOnClose: incoming["goToLastTabOnClose"] as? Bool ?? current.goToLastTabOnClose
+                goToLastTabOnClose: incoming["goToLastTabOnClose"] as? Bool ?? current.goToLastTabOnClose,
+                switchShortcut: NativeShortcutSetting.parse(
+                    incoming["switchShortcut"],
+                    fallback: current.switchShortcut
+                ),
+                searchShortcut: NativeShortcutSetting.parse(
+                    incoming["searchShortcut"],
+                    fallback: current.searchShortcut
+                )
             )
             settingsStore.save(merged)
             respond(context, payload: settingsPayload(type: "settings"))
@@ -168,7 +253,9 @@ private extension SafariWebExtensionHandler {
                 "hudDelay": settings.hudDelay,
                 "layout": settings.layout,
                 "theme": settings.theme,
-                "goToLastTabOnClose": settings.goToLastTabOnClose
+                "goToLastTabOnClose": settings.goToLastTabOnClose,
+                "switchShortcut": settings.switchShortcut.dictionary,
+                "searchShortcut": settings.searchShortcut.dictionary
             ],
             "updatedAt": settingsStore.updatedAt
         ]

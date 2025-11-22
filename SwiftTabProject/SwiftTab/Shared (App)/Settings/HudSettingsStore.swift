@@ -16,6 +16,16 @@ final class HudSettingsStore {
         return value
     }
 
+    private func readShortcut(forKey key: String, fallback: ShortcutSetting) -> ShortcutSetting {
+        let stored = defaults.object(forKey: key)
+        return ShortcutSetting.fromStorage(stored, fallback: fallback)
+    }
+
+    private func persistShortcut(_ shortcut: ShortcutSetting, forKey key: String, fallback: ShortcutSetting) {
+        let normalized = shortcut.normalized(fallback: fallback)
+        defaults.set(normalized.storageValue, forKey: key)
+    }
+
     func load() -> HudSettingsState {
         let enabled = defaults.object(forKey: HudSettingsDefaults.enabledKey) as? Bool
             ?? HudSettingsDefaults.defaults.enabled
@@ -27,13 +37,23 @@ final class HudSettingsStore {
             ?? HudSettingsDefaults.defaults.theme
         let goToLastTabOnClose = defaults.object(forKey: HudSettingsDefaults.goToLastTabOnCloseKey) as? Bool
             ?? HudSettingsDefaults.defaults.goToLastTabOnClose
+        let switchShortcut = readShortcut(
+            forKey: HudSettingsDefaults.switchShortcutKey,
+            fallback: HudSettingsDefaults.defaultSwitchShortcut
+        )
+        let searchShortcut = readShortcut(
+            forKey: HudSettingsDefaults.searchShortcutKey,
+            fallback: HudSettingsDefaults.defaultSearchShortcut
+        )
 
         return HudSettingsState(
             enabled: enabled,
             hudDelay: clampDelay(delay),
             layout: layout,
             theme: theme,
-            goToLastTabOnClose: goToLastTabOnClose
+            goToLastTabOnClose: goToLastTabOnClose,
+            switchShortcut: switchShortcut,
+            searchShortcut: searchShortcut
         )
     }
 
@@ -43,6 +63,16 @@ final class HudSettingsStore {
         defaults.set(settings.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)
         defaults.set(settings.theme.rawValue, forKey: HudSettingsDefaults.themeKey)
         defaults.set(settings.goToLastTabOnClose, forKey: HudSettingsDefaults.goToLastTabOnCloseKey)
+        persistShortcut(
+            settings.switchShortcut,
+            forKey: HudSettingsDefaults.switchShortcutKey,
+            fallback: HudSettingsDefaults.defaultSwitchShortcut
+        )
+        persistShortcut(
+            settings.searchShortcut,
+            forKey: HudSettingsDefaults.searchShortcutKey,
+            fallback: HudSettingsDefaults.defaultSearchShortcut
+        )
         defaults.set(Date().timeIntervalSince1970, forKey: HudSettingsDefaults.storageUpdatedAtKey)
         defaults.synchronize()
         DistributedNotificationCenter.default().post(name: HudSettingsDefaults.changedNotification, object: nil)

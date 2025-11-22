@@ -4,16 +4,42 @@ export type WindowId = number;
 export type LayoutMode = "horizontal" | "vertical";
 export type ThemeMode = "dark" | "light" | "system";
 
+export interface ShortcutSetting {
+  key: string;
+  alt: boolean;
+  ctrl: boolean;
+  meta: boolean;
+  shift: boolean;
+}
+
 export interface HudSettings {
   enabled: boolean;
   hudDelay: number;
   layout: LayoutMode;
   theme: ThemeMode;
   goToLastTabOnClose: boolean;
+  switchShortcut: ShortcutSetting;
+  searchShortcut: ShortcutSetting;
 }
 
 export const HUD_DELAY_MIN = 0;
 export const HUD_DELAY_MAX = 1000;
+
+export const DEFAULT_SWITCH_SHORTCUT: ShortcutSetting = {
+  key: "tab",
+  alt: true,
+  ctrl: false,
+  meta: false,
+  shift: false,
+};
+
+export const DEFAULT_SEARCH_SHORTCUT: ShortcutSetting = {
+  key: "space",
+  alt: true,
+  ctrl: false,
+  meta: false,
+  shift: false,
+};
 
 export const DEFAULT_SETTINGS: HudSettings = {
   enabled: true,
@@ -21,6 +47,8 @@ export const DEFAULT_SETTINGS: HudSettings = {
   layout: "vertical",
   theme: "system",
   goToLastTabOnClose: true,
+  switchShortcut: DEFAULT_SWITCH_SHORTCUT,
+  searchShortcut: DEFAULT_SEARCH_SHORTCUT,
 };
 
 export const FALLBACK_FAVICON_DARK_URI = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFX0lEQVR4nO2a228WVRTFC02xDWmtVV/wxXLzSRT1waQIXoi36IMXUEmUNngD1AZIKvgkeMGYaPQfsKhPUqOJSrzilQhi0YJJFUR5sYqIoeKFooSf2c06ye50vpnz9ZvSYlxJk87sNefMnnP2Ofus/VVV/Y84AKfZX9XJAmA6cDfwArAd6Gc4+mV7HrjLnqkaDwCagJVADyPHl8CKMRk14HTgSeCwe6HfgGPu+iVgjru+BNjoro/pmQBr6wn7OCfCgQnAEuCge4G3gFuBh3T9F3CHe2YQ7noxcES31wC3AW+79g4AbdbXaE6j11yHHwMtss0D/gGOAzcnnhviiO4tENeemad7NnqfuPZfLXy6AecA+9wUWOxsNcDXsj2c8uwwR3R/nUz2bI273wr8Ltt3wIyinLhAw23YkVxpFKiGb4BJZTgyCdgt88qEbYb6MvwMzC5iJIITHwD1CXuds19doo1UR2S71sVFXcJWD3zonJleSUyE6dQLTE7h2L5h6Mlop6Qjsu8U5c4U22Q3bfcCjSNZnXxgo2mw3DcGbJPt3gocWSbKVnfvVGCpm3oBr5S1mtnXcYHdoa8R8LeWyzWOU1+BIw0uuDuATcCA6+9bYJXbs1rL2ezCPrFM96ptWdWeYY54/CHHnrWRAa4CLgKm2ug5nn3lZi0eV2paPg286Rzxm+W7Wqar9Q42G0K85C/L2rHDPjGxROy0uiAvEr8oBzsjpd+Jbp9Zn+dEkxvClpwYCknhxcB1mhbP6Ut2A98Dh9xL9mvxsGX1PWADsBq4wfpynAkZ/Vqag1Kb0qOiuWj4LCLTNfyQ+WUiYsTxfhR1Wg7vU/Has0ghi70xpzGbu4bXC3TEgpxkipPR9468r/wnUJvT2OPiri3QkUdEfSyHV6fE1NBclbG5vRHR6cviLizQEcugDRsjuLbSGZakGe1kZ7g/oiFLVwyXFejI5aK+H8FtF3dDmvFzGS+NaOgrcc8t0JFZou6K4M4Xd1ua8VDJeTec2yfulAIdmSJqXwR3mri/Jg3VOugc82eDjIaOqqFTCnTE0np7h6MR3Bq96/Ehm7bSh5MVDf9JR6rLnFohO62N4A4iglcr6sCIp9Y4Cfazygh2y6yHB7uMpgDGLr+7xJ1VoCPni7ozgntF8jDmjSZjjuWGGF6unA2xM81o5wDDpoiGusS9ZRRSlK5KUxSfNA5RNDKSxnVjnDSeXYpkgrLhppzG7Ngbm2COVhrfnUUyZd2wPTJF6CvQkZ9EnZrD2yreA3lFmXDUnRN51G3RcdVUlRctWDWy+xI1kn4df/1R147H1+u4HDhZR925jpetcUnazxIfztTCYEJB0TggYaOphPiwJSaOvAARFJLlbudfCGxO1ECQlGOryFNycL4kn+aEHNSojexCyUH3AM9ISjJJycMkp3cSctB9su2PVhxVn0DTbJVEsoABBWaHc6Qho61B5Ah0h5VurJZ2FrLroMg/6Kb87VFOuBiw+oTHbglwDSmS6dIKHDFpNCmZNkpKNYXfI3ePKRX49jWQkDxaInZPjojdK/sey9LLdsTVKUyiRBJ/VlnhmoLLCg3ARy4uMvWuGGdmO2e+AGaOQqFnRcI2023O5sR5FTmRGJm9LrjbSpTe1pbhSEhJehOltzYnau+peCRSOm5UfSJgS9g0E8XQBXmOaCkPxdC5Ttfd4gN7xDERuZq1uqmG1vtFrjx9xNcwko7oeV+eXiThO2B/WUtshQ7ZirY+UfBP/mCgy6nn6P+gUCJu8gcHj5ZdXivQoXZXgR0JutXGiXcgDUpJ7FcRnVaWsPN0yksf1CbaKW76eWI8QovE+PjaVScB/gUcpqAaAuI+2AAAAABJRU5ErkJggg==`;
@@ -34,6 +62,33 @@ function parseEnabled(value: unknown, fallback: boolean = DEFAULT_SETTINGS.enabl
 function parseBoolean(value: unknown, fallback: boolean): boolean {
   if (typeof value === "boolean") return value;
   return fallback;
+}
+
+function normalizeShortcutKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const rawLower = value.toLowerCase();
+  if (rawLower === " " || rawLower === "space" || rawLower === "spacebar") return "space";
+  if (value === "\t" || rawLower === "tab") return "tab";
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const lower = trimmed.toLowerCase();
+  if (lower === "spacebar" || lower === "space") return "space";
+  if (trimmed === "\t" || lower === "tab") return "tab";
+  return lower;
+}
+
+function parseShortcut(
+  value: Partial<ShortcutSetting> | undefined,
+  fallback: ShortcutSetting
+): ShortcutSetting {
+  const key = normalizeShortcutKey(value?.key) ?? fallback.key;
+  const alt = parseBoolean(value?.alt, fallback.alt);
+  const ctrl = parseBoolean(value?.ctrl, fallback.ctrl);
+  const meta = parseBoolean(value?.meta, fallback.meta);
+  const shift = parseBoolean(value?.shift, fallback.shift);
+  return { key, alt, ctrl, meta, shift };
 }
 
 export function clampHudDelay(
@@ -78,6 +133,8 @@ export function normalizeHudSettings(
     layout: parseLayoutMode(input?.layout, fallback.layout),
     theme: parseThemeMode(input?.theme, fallback.theme),
     goToLastTabOnClose: parseBoolean(input?.goToLastTabOnClose, fallback.goToLastTabOnClose),
+    switchShortcut: parseShortcut(input?.switchShortcut, fallback.switchShortcut),
+    searchShortcut: parseShortcut(input?.searchShortcut, fallback.searchShortcut),
   };
 }
 
