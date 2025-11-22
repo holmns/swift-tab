@@ -4,6 +4,7 @@ import {
   normalizeHudSettings,
   type HudSettings,
   type LayoutMode,
+  type ShortcutSetting,
   type ThemeMode,
 } from "@shared";
 import {
@@ -102,6 +103,8 @@ function App() {
   const [hudDelay, setHudDelay] = useState<number>(DEFAULT_SETTINGS.hudDelay);
   const [layout, setLayout] = useState<LayoutMode>(DEFAULT_SETTINGS.layout);
   const [theme, setTheme] = useState<ThemeMode>(DEFAULT_SETTINGS.theme);
+  const [switchShortcut, setSwitchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.switchShortcut);
+  const [searchShortcut, setSearchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.searchShortcut);
   const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -172,6 +175,8 @@ function App() {
         setHudDelay(settings.hudDelay);
         setLayout(settings.layout);
         setTheme(settings.theme);
+        setSwitchShortcut(settings.switchShortcut);
+        setSearchShortcut(settings.searchShortcut);
         goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
         setHydrated(true);
       })
@@ -197,6 +202,8 @@ function App() {
       setHudDelay(normalized.hudDelay);
       setLayout(normalized.layout);
       setTheme(normalized.theme);
+      setSwitchShortcut(normalized.switchShortcut);
+      setSearchShortcut(normalized.searchShortcut);
       goToLastTabOnCloseRef.current = normalized.goToLastTabOnClose;
       setHydrated(true);
     });
@@ -207,6 +214,8 @@ function App() {
       setHudDelay(settings.hudDelay);
       setLayout(settings.layout);
       setTheme(settings.theme);
+      setSwitchShortcut(settings.switchShortcut);
+      setSearchShortcut(settings.searchShortcut);
       goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
     });
 
@@ -224,6 +233,8 @@ function App() {
       hudDelay,
       layout,
       theme,
+      switchShortcut,
+      searchShortcut,
       goToLastTabOnClose: goToLastTabOnCloseRef.current,
     }).catch((error) => {
       if (cancelled) return;
@@ -234,6 +245,8 @@ function App() {
       hudDelay,
       layout,
       theme,
+      switchShortcut,
+      searchShortcut,
       goToLastTabOnClose: goToLastTabOnCloseRef.current,
     }).catch((error) => {
       if (cancelled) return;
@@ -242,7 +255,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, enabled, hudDelay, layout, theme]);
+  }, [hydrated, enabled, hudDelay, layout, theme, switchShortcut, searchShortcut]);
 
   const toggleEnabled = (): void => {
     if (isLoading) return;
@@ -291,7 +304,7 @@ function App() {
             </button>
             <p className="text-xs text-slate-500 dark:text-white/60">
               {enabled
-                ? "SwiftTab will respond to Option+Tab and the search shortcut."
+                ? "SwiftTab will respond to your configured switch and search shortcuts."
                 : "SwiftTab stays idle until you turn it back on."}
             </p>
           </section>

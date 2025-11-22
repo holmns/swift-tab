@@ -2,7 +2,6 @@ import {
   DEFAULT_SETTINGS,
   normalizeHudSettings,
   resolveHudTitle,
-  type ContentCommandMessage,
   type HudItem,
   type HudMessage,
   type HudSettings,
@@ -837,25 +836,6 @@ function registerListeners(): void {
 
     return false;
   });
-
-  if (chrome.commands) {
-    chrome.commands.onCommand.addListener(async (command) => {
-      if (command !== "swift-tab-toggle-search") return;
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!activeTab?.id) return;
-      try {
-        await chrome.tabs.sendMessage(activeTab.id, {
-          type: "hud-toggle-search",
-        } satisfies ContentCommandMessage);
-      } catch (error) {
-        const message = (error as { message?: string } | undefined)?.message;
-        if (message && message.includes("Receiving end does not exist")) {
-          return;
-        }
-        console.warn("[SwiftTab] Failed to notify content script", error);
-      }
-    });
-  }
 }
 
 function registerSettingsSync(): void {
@@ -873,6 +853,8 @@ function registerSettingsSync(): void {
     "layout",
     "theme",
     "goToLastTabOnClose",
+    "switchShortcut",
+    "searchShortcut",
   ];
 
   const pushStorageToNative = async (overrides?: Partial<HudSettings>): Promise<void> => {

@@ -8,6 +8,8 @@ final class HudSettingsViewModel: ObservableObject {
     @Published var layout: HudLayoutMode
     @Published var theme: HudThemeMode
     @Published var goToLastTabOnClose: Bool
+    @Published var switchShortcut: ShortcutSetting
+    @Published var searchShortcut: ShortcutSetting
 
     private var cancellables: Set<AnyCancellable> = []
     private var enabled: Bool
@@ -23,6 +25,8 @@ final class HudSettingsViewModel: ObservableObject {
         theme = settings.theme
         enabled = settings.enabled
         goToLastTabOnClose = settings.goToLastTabOnClose
+        switchShortcut = settings.switchShortcut
+        searchShortcut = settings.searchShortcut
 
         bindStore()
         bindPersist()
@@ -42,16 +46,23 @@ final class HudSettingsViewModel: ObservableObject {
     }
 
     private func bindPersist() {
-        Publishers.CombineLatest4($hudDelay, $layout, $theme, $goToLastTabOnClose)
+        Publishers.CombineLatest(
+            Publishers.CombineLatest4($hudDelay, $layout, $theme, $goToLastTabOnClose),
+            Publishers.CombineLatest($switchShortcut, $searchShortcut)
+        )
             .receive(on: RunLoop.main)
             .dropFirst()
             .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
-            .sink { [weak self] delay, layout, theme, goToLastTabOnClose in
+            .sink { [weak self] primary, shortcuts in
+                let (delay, layout, theme, goToLastTabOnClose) = primary
+                let (switchShortcut, searchShortcut) = shortcuts
                 self?.persist(
                     delay: delay,
                     layout: layout,
                     theme: theme,
-                    goToLastTabOnClose: goToLastTabOnClose
+                    goToLastTabOnClose: goToLastTabOnClose,
+                    switchShortcut: switchShortcut,
+                    searchShortcut: searchShortcut
                 )
             }
             .store(in: &cancellables)
@@ -65,6 +76,8 @@ final class HudSettingsViewModel: ObservableObject {
         layout = latest.layout
         theme = latest.theme
         goToLastTabOnClose = latest.goToLastTabOnClose
+        switchShortcut = latest.switchShortcut
+        searchShortcut = latest.searchShortcut
         isUpdatingFromStore = false
     }
 
@@ -72,7 +85,9 @@ final class HudSettingsViewModel: ObservableObject {
         delay: Double,
         layout: HudLayoutMode,
         theme: HudThemeMode,
-        goToLastTabOnClose: Bool
+        goToLastTabOnClose: Bool,
+        switchShortcut: ShortcutSetting,
+        searchShortcut: ShortcutSetting
     ) {
         guard !isUpdatingFromStore else { return }
         let clampedDelay = max(0, min(1000, Int(delay.rounded())))
@@ -81,7 +96,9 @@ final class HudSettingsViewModel: ObservableObject {
             hudDelay: clampedDelay,
             layout: layout,
             theme: theme,
-            goToLastTabOnClose: goToLastTabOnClose
+            goToLastTabOnClose: goToLastTabOnClose,
+            switchShortcut: switchShortcut,
+            searchShortcut: searchShortcut
         )
         store.save(next)
     }

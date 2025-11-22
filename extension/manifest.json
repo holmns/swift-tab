@@ -9,15 +9,6 @@
   "action": {
     "default_popup": "options-dist/index.html"
   },
-  "commands": {
-    "swift-tab-toggle-search": {
-      "description": "Toggle Search Tabs",
-      "suggested_key": {
-        "default": "Ctrl+E",
-        "mac": "Command+E"
-      }
-    }
-  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
