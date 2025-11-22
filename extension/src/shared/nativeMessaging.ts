@@ -7,12 +7,14 @@ interface NativeSettingsPayload {
   settings?: Partial<HudSettings>;
   updatedAt?: number;
   type?: string;
+  ok?: boolean;
 }
 
 type NativeRequest =
   | { type: "read-settings" }
   | { type: "write-settings"; settings: HudSettings }
-  | { type: "subscribe-settings" };
+  | { type: "subscribe-settings" }
+  | { type: "open-app" };
 
 function hasNativeMessaging(): boolean {
   return typeof chrome !== "undefined" && typeof chrome.runtime?.sendNativeMessage === "function";
@@ -41,6 +43,11 @@ export async function readNativeSettings(): Promise<NativeSettingsPayload | null
 
 export async function writeNativeSettings(settings: HudSettings): Promise<void> {
   await sendNativeMessage({ type: "write-settings", settings });
+}
+
+export async function openNativeApp(): Promise<boolean> {
+  const response = await sendNativeMessage<NativeSettingsPayload>({ type: "open-app" });
+  return Boolean(response?.ok);
 }
 
 export function subscribeToNativeSettings(
