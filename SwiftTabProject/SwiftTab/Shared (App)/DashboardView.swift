@@ -143,6 +143,8 @@ private struct EnablementStep: Identifiable {
 private struct HudSettingsCard: View {
     @ObservedObject var viewModel: HudSettingsViewModel
     @State private var showAdvanced = false
+    @State private var showDuplicateWarning = false
+    @State private var duplicateWarningTask: DispatchWorkItem?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -194,6 +196,12 @@ private struct HudSettingsCard: View {
                     shortcut: $viewModel.searchShortcut,
                     defaultShortcut: HudSettingsDefaults.defaultSearchShortcut
                 )
+                if showDuplicateWarning {
+                    Text("Shortcuts must differ. Pick a different combo for search or switch.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.red)
+                        .padding(.top, 4)
+                }
             }
             
             VStack(alignment: .leading, spacing: 10) {
@@ -253,9 +261,32 @@ private struct HudSettingsCard: View {
                 .strokeBorder(Color.secondary.opacity(0.1), lineWidth: 1)
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                    .fill(.ultraThinMaterial)
                 )
         )
+        .onChange(of: viewModel.switchShortcut) { _ in
+            handleDuplicateIfNeeded()
+        }
+        .onChange(of: viewModel.searchShortcut) { _ in
+            handleDuplicateIfNeeded()
+        }
+        .onAppear {
+            handleDuplicateIfNeeded()
+        }
+        .onDisappear {
+            duplicateWarningTask?.cancel()
+        }
+    }
+
+    private func handleDuplicateIfNeeded() {
+        guard viewModel.switchShortcut == viewModel.searchShortcut else { return }
+        showDuplicateWarning = true
+        duplicateWarningTask?.cancel()
+        let task = DispatchWorkItem {
+            showDuplicateWarning = false
+        }
+        duplicateWarningTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
     }
 }
 

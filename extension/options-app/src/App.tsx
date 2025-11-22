@@ -4,6 +4,7 @@ import {
   normalizeHudSettings,
   type HudSettings,
   type LayoutMode,
+  shortcutsEqual,
   type ShortcutSetting,
   type ThemeMode,
 } from "@shared";
@@ -227,6 +228,9 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (shortcutsEqual(switchShortcut, searchShortcut)) {
+      return;
+    }
     let cancelled = false;
     writeSettings({
       enabled,

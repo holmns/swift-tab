@@ -90,6 +90,10 @@ final class HudSettingsViewModel: ObservableObject {
         searchShortcut: ShortcutSetting
     ) {
         guard !isUpdatingFromStore else { return }
+        guard switchShortcut != searchShortcut else {
+            refreshFromStore()
+            return
+        }
         let clampedDelay = max(0, min(1000, Int(delay.rounded())))
         let next = HudSettingsState(
             enabled: enabled,

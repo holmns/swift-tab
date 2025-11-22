@@ -32,12 +32,20 @@ private enum NativeDefaults {
     static let searchShortcut = NativeShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
 }
 
-private struct NativeShortcutSetting {
+private struct NativeShortcutSetting: Equatable {
     var key: String
     var alt: Bool
     var ctrl: Bool
     var meta: Bool
     var shift: Bool
+
+    static func == (lhs: NativeShortcutSetting, rhs: NativeShortcutSetting) -> Bool {
+        return lhs.key == rhs.key &&
+            lhs.alt == rhs.alt &&
+            lhs.ctrl == rhs.ctrl &&
+            lhs.meta == rhs.meta &&
+            lhs.shift == rhs.shift
+    }
 
     var normalizedKey: String {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -128,6 +136,7 @@ private final class NativeSettingsStore {
     }
 
     func save(_ settings: NativeHudSettings) {
+        guard settings.switchShortcut != settings.searchShortcut else { return }
         defaults.set(settings.enabled, forKey: NativeSettingsKeys.enabledKey)
         defaults.set(clampDelay(settings.hudDelay), forKey: NativeSettingsKeys.delayKey)
         defaults.set(settings.layout, forKey: NativeSettingsKeys.layoutKey)
