@@ -25,12 +25,15 @@ final class HudSettingsStore {
             ?? HudSettingsDefaults.defaults.layout
         let theme = HudThemeMode(rawValue: defaults.string(forKey: HudSettingsDefaults.themeKey) ?? "")
             ?? HudSettingsDefaults.defaults.theme
+        let goToLastTabOnClose = defaults.object(forKey: HudSettingsDefaults.goToLastTabOnCloseKey) as? Bool
+            ?? HudSettingsDefaults.defaults.goToLastTabOnClose
 
         return HudSettingsState(
             enabled: enabled,
             hudDelay: clampDelay(delay),
             layout: layout,
-            theme: theme
+            theme: theme,
+            goToLastTabOnClose: goToLastTabOnClose
         )
     }
 
@@ -39,6 +42,7 @@ final class HudSettingsStore {
         defaults.set(clampDelay(settings.hudDelay), forKey: HudSettingsDefaults.delayKey)
         defaults.set(settings.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)
         defaults.set(settings.theme.rawValue, forKey: HudSettingsDefaults.themeKey)
+        defaults.set(settings.goToLastTabOnClose, forKey: HudSettingsDefaults.goToLastTabOnCloseKey)
         defaults.set(Date().timeIntervalSince1970, forKey: HudSettingsDefaults.storageUpdatedAtKey)
         defaults.synchronize()
         DistributedNotificationCenter.default().post(name: HudSettingsDefaults.changedNotification, object: nil)

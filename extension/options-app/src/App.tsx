@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
   normalizeHudSettings,
@@ -102,6 +102,7 @@ function App() {
   const [hudDelay, setHudDelay] = useState<number>(DEFAULT_SETTINGS.hudDelay);
   const [layout, setLayout] = useState<LayoutMode>(DEFAULT_SETTINGS.layout);
   const [theme, setTheme] = useState<ThemeMode>(DEFAULT_SETTINGS.theme);
+  const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
@@ -171,6 +172,7 @@ function App() {
         setHudDelay(settings.hudDelay);
         setLayout(settings.layout);
         setTheme(settings.theme);
+        goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
         setHydrated(true);
       })
       .finally(() => {
@@ -195,6 +197,7 @@ function App() {
       setHudDelay(normalized.hudDelay);
       setLayout(normalized.layout);
       setTheme(normalized.theme);
+      goToLastTabOnCloseRef.current = normalized.goToLastTabOnClose;
       setHydrated(true);
     });
 
@@ -204,6 +207,7 @@ function App() {
       setHudDelay(settings.hudDelay);
       setLayout(settings.layout);
       setTheme(settings.theme);
+      goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
     });
 
     return () => {
@@ -215,11 +219,23 @@ function App() {
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
-    writeSettings({ enabled, hudDelay, layout, theme }).catch((error) => {
+    writeSettings({
+      enabled,
+      hudDelay,
+      layout,
+      theme,
+      goToLastTabOnClose: goToLastTabOnCloseRef.current,
+    }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to save settings", error);
     });
-    writeNativeSettings({ enabled, hudDelay, layout, theme }).catch((error) => {
+    writeNativeSettings({
+      enabled,
+      hudDelay,
+      layout,
+      theme,
+      goToLastTabOnClose: goToLastTabOnCloseRef.current,
+    }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to sync settings to app", error);
     });
@@ -268,16 +284,7 @@ function App() {
                   : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
               }`}
             >
-              <span className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    enabled
-                      ? "bg-fuchsia-500 shadow shadow-fuchsia-500/40"
-                      : "bg-slate-300 dark:bg-white/30"
-                  }`}
-                />
-                {enabled ? "Enabled" : "Disabled"}
-              </span>
+              <span>{enabled ? "Enabled" : "Disabled"}</span>
               <span className="text-sm text-slate-500 dark:text-white/80">
                 {enabled ? "On" : "Off"}
               </span>
@@ -290,7 +297,7 @@ function App() {
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">HUD Layout</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Layout</p>
             <div className="relative">
               <select
                 className="w-full appearance-none rounded-[28px] border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-white/95 dark:focus-visible:ring-white/30"
@@ -300,8 +307,8 @@ function App() {
                   setLayout(event.target.value as LayoutMode);
                 }}
               >
-                <option value="horizontal">Horizontal grid</option>
                 <option value="vertical">Vertical list</option>
+                <option value="horizontal">Horizontal grid</option>
               </select>
               <CaretDownIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-white/60" />
             </div>
@@ -311,7 +318,7 @@ function App() {
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">HUD Theme</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Theme</p>
             <div className="relative">
               <select
                 className="w-full appearance-none rounded-[28px] border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-white/95 dark:focus-visible:ring-white/30"

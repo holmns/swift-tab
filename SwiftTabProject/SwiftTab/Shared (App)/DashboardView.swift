@@ -7,24 +7,26 @@ struct DashboardView: View {
     @StateObject private var hudSettingsViewModel = HudSettingsViewModel()
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("SwiftTab Dashboard")
-                    .font(.system(size: 30, weight: .bold))
-                Text("Enable the extension, verify status, and keep exploring.")
-                    .foregroundStyle(.secondary)
-            }
-            
-            HStack(alignment: .top, spacing: 20) {
-                statusCard
-                EnablementStepsCard()
-            }
-            HudSettingsCard(viewModel: hudSettingsViewModel)
-                .padding(.top, 8)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SwiftTab Dashboard")
+                        .font(.system(size: 30, weight: .bold))
+                    Text("Enable the extension, verify status, and keep exploring.")
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack(alignment: .top, spacing: 20) {
+                    statusCard
+                    EnablementStepsCard()
+                }
+                HudSettingsCard(viewModel: hudSettingsViewModel)
+                    .padding(.top, 8)
 
-            Spacer()
+                Spacer(minLength: 0)
+            }
+            .padding(36)
         }
-        .padding(36)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             LinearGradient(
@@ -156,20 +158,17 @@ private struct EnablementStep: Identifiable {
 
 private struct HudSettingsCard: View {
     @ObservedObject var viewModel: HudSettingsViewModel
+    @State private var showAdvanced = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("HUD Settings")
-                    .font(.title3.weight(.semibold))
-                Text("Keep these in sync with the Safari pop-up.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            Text("SwiftTab Settings")
+                .font(.title3.weight(.semibold))
+            
             VStack(alignment: .leading, spacing: 12) {
-                Text("HUD Layout")
+                Text("Layout")
                     .font(.headline)
-                Picker("HUD Layout", selection: $viewModel.layout) {
+                Picker("Layout", selection: $viewModel.layout) {
                     ForEach(HudLayoutMode.allCases) { layout in
                         Text(layout.label).tag(layout)
                     }
@@ -182,9 +181,9 @@ private struct HudSettingsCard: View {
             }
             
             VStack(alignment: .leading, spacing: 12) {
-                Text("HUD Theme")
+                Text("Theme")
                     .font(.headline)
-                Picker("HUD Theme", selection: $viewModel.theme) {
+                Picker("Theme", selection: $viewModel.theme) {
                     ForEach(HudThemeMode.allCases) { theme in
                         Text(theme.label).tag(theme)
                     }
@@ -196,24 +195,55 @@ private struct HudSettingsCard: View {
                     .foregroundStyle(.secondary)
             }
             
-            VStack(alignment: .leading, spacing: 12) {
-                Text("HUD Delay")
-                    .font(.headline)
-                HStack {
-                    Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
-                    Text("\(Int(viewModel.hudDelay)) ms")
-                        .font(.footnote.monospacedDigit())
-                        .frame(width: 70, alignment: .trailing)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    withAnimation(.spring(duration: 0.2)) {
+                        showAdvanced.toggle()
+                    }
+                } label: {
+                    HStack {
+                        Text("Advanced Settings")
+                            .font(.headline)
+                        Image(systemName: "chevron.down")
+                            .rotationEffect(.degrees(showAdvanced ? 180 : 0))
+                            .animation(.easeInOut(duration: 0.2), value: showAdvanced)
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.vertical, 10)
                 }
-                Text("Delay before the HUD hides after releasing ⌥ during tab switching.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                .buttonStyle(PlainButtonStyle())
+
+                if showAdvanced {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $viewModel.goToLastTabOnClose) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Return to last used tab")
+                                    .font(.body.weight(.semibold))
+                                Text("When you close the active tab, focus the most recently used tab automatically.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(.switch)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("HUD Delay")
+                                .font(.headline)
+                            HStack {
+                                Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
+                                Text("\(Int(viewModel.hudDelay)) ms")
+                                    .font(.footnote.monospacedDigit())
+                                    .frame(width: 70, alignment: .trailing)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("Delay before the HUD hides after releasing ⌥ during tab switching.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
-            
-            Text("Enable/disable the extension from the Safari pop-up; all other settings stay synced here.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -284,5 +314,6 @@ private extension MacOnboardingViewModel.ExtensionState {
 
 #Preview("DashBoardView") {
     DashboardView(viewModel: MacOnboardingViewModel())
+        .frame(minWidth: 1257, minHeight: 768)
 }
 #endif

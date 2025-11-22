@@ -4,6 +4,9 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      colors: {
+        'brand-primary': '#ff9700',
+      },
       fontFamily: {
         sans: [
           'SF Pro Text',
