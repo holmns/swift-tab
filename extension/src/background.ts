@@ -1,11 +1,19 @@
 import {
+  DEFAULT_SETTINGS,
+  normalizeHudSettings,
   resolveHudTitle,
   type ContentCommandMessage,
   type HudItem,
   type HudMessage,
+  type HudSettings,
   type TabId,
   type WindowId,
 } from "./shared/index";
+import {
+  readNativeSettings,
+  subscribeToNativeSettings,
+  writeNativeSettings,
+} from "./shared/nativeMessaging";
 
 const mruStore = (() => {
   const stacks = new Map<WindowId, TabId[]>();
@@ -845,6 +853,58 @@ function registerListeners(): void {
   }
 }
 
+function registerSettingsSync(): void {
+  if (!chrome.storage?.sync) return;
+
+  let applyingNativeUpdate = false;
+
+  const syncKeys: (keyof HudSettings)[] = ["enabled", "hudDelay", "layout", "theme"];
+
+  const pushStorageToNative = async (overrides?: Partial<HudSettings>): Promise<void> => {
+    const nextSettings = await new Promise<HudSettings>((resolve) => {
+      chrome.storage.sync.get(DEFAULT_SETTINGS, (data) => {
+        resolve(normalizeHudSettings({ ...data, ...overrides }, DEFAULT_SETTINGS));
+      });
+    });
+    await writeNativeSettings(nextSettings);
+  };
+
+  const applyNativeUpdate = (settings: HudSettings): void => {
+    const normalized = normalizeHudSettings(settings, DEFAULT_SETTINGS);
+    applyingNativeUpdate = true;
+    chrome.storage.sync.set(normalized, () => {
+      applyingNativeUpdate = false;
+    });
+  };
+
+  void readNativeSettings().then((response) => {
+    if (!response?.settings || !response.updatedAt) return;
+    applyNativeUpdate(normalizeHudSettings(response.settings, DEFAULT_SETTINGS));
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "sync") return;
+    const partial: Partial<HudSettings> = {};
+    let hasChange = false;
+    for (const key of syncKeys) {
+      if (Object.prototype.hasOwnProperty.call(changes, key)) {
+        const change = changes[key];
+        partial[key] = change?.newValue ?? change?.oldValue;
+        hasChange = true;
+      }
+    }
+    if (!hasChange) return;
+    if (applyingNativeUpdate) return;
+    void pushStorageToNative(partial);
+  });
+
+  subscribeToNativeSettings((settings, updatedAt) => {
+    if (!updatedAt) return;
+    applyNativeUpdate(settings);
+  });
+}
+
 registerListeners();
+registerSettingsSync();
 
 export {};

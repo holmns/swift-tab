@@ -6,6 +6,11 @@ import {
   type LayoutMode,
   type ThemeMode,
 } from "@shared";
+import {
+  readNativeSettings,
+  subscribeToNativeSettings,
+  writeNativeSettings,
+} from "@shared/nativeMessaging";
 
 const FALLBACK_STORAGE_KEY = "swift-tab-options";
 
@@ -178,11 +183,45 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    readNativeSettings().then((payload) => {
+      if (cancelled) return;
+      const settings = payload?.settings;
+      const updatedAt = payload?.updatedAt ?? 0;
+      if (!settings || updatedAt <= 0) return;
+      const normalized = normalizeHudSettings(settings);
+      setEnabled(normalized.enabled);
+      setHudDelay(normalized.hudDelay);
+      setLayout(normalized.layout);
+      setTheme(normalized.theme);
+      setHydrated(true);
+    });
+
+    const unsubscribe = subscribeToNativeSettings((settings, updatedAt) => {
+      if (cancelled || !updatedAt) return;
+      setEnabled(settings.enabled);
+      setHudDelay(settings.hudDelay);
+      setLayout(settings.layout);
+      setTheme(settings.theme);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
     writeSettings({ enabled, hudDelay, layout, theme }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to save settings", error);
+    });
+    writeNativeSettings({ enabled, hudDelay, layout, theme }).catch((error) => {
+      if (cancelled) return;
+      console.warn("[SwiftTab] Failed to sync settings to app", error);
     });
     return () => {
       cancelled = true;
