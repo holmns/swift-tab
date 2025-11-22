@@ -12,6 +12,7 @@ import {
   readNativeSettings,
   subscribeToNativeSettings,
   writeNativeSettings,
+  openNativeApp,
 } from "@shared/nativeMessaging";
 
 const FALLBACK_STORAGE_KEY = "swift-tab-options";
@@ -267,13 +268,17 @@ function App() {
   };
 
   const handleOpenApp = (): void => {
-    try {
-      if (typeof window !== "undefined") {
-        window.open("https://swifttab.app", "_blank", "noopener,noreferrer");
+    void (async () => {
+      const opened = await openNativeApp();
+      if (opened) return;
+      try {
+        if (typeof window !== "undefined") {
+          window.open("https://swifttab.app", "_blank", "noopener,noreferrer");
+        }
+      } catch (error) {
+        console.warn("[SwiftTab] Failed to open website", error);
       }
-    } catch (error) {
-      console.warn("[SwiftTab] Failed to open website", error);
-    }
+    })();
   };
 
   return (

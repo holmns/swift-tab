@@ -7,11 +7,13 @@
 
 import SafariServices
 import Foundation
+import AppKit
 
 private enum NativeMessageType: String {
     case readSettings = "read-settings"
     case writeSettings = "write-settings"
     case subscribeSettings = "subscribe-settings"
+    case openApp = "open-app"
 }
 
 private enum NativeSettingsKeys {
@@ -243,6 +245,9 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             notifySubscribers(excluding: context)
         case .subscribeSettings:
             addSubscription(for: context)
+        case .openApp:
+            let opened = launchContainerApp()
+            respond(context, payload: ["type": "open-app", "ok": opened])
         }
     }
 
@@ -278,6 +283,22 @@ private extension SafariWebExtensionHandler {
             response.userInfo = ["message": payload]
         }
         context.completeRequest(returningItems: [response], completionHandler: nil)
+    }
+
+    func launchContainerApp() -> Bool {
+        let bundleIdentifiers = [
+            "com.holmns.swifttab",
+            "com.holmns.SwiftTab",
+        ]
+
+        for identifier in bundleIdentifiers {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
+                let config = NSWorkspace.OpenConfiguration()
+                NSWorkspace.shared.openApplication(at: url, configuration: config, completionHandler: nil)
+                return true
+            }
+        }
+        return false
     }
 
     func addSubscription(for context: NSExtensionContext) {

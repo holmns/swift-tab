@@ -18,13 +18,42 @@
     color-scheme: dark;
   }
 
+  :root {
+    --focus-ring: #ffffff00;
+    --focus-ring-outer: rgba(255, 255, 255, 0);
+  }
+
+  :root.dark {
+    --focus-ring: #ffffff00;
+    --focus-ring-outer: rgba(255, 255, 255, 0);
+  }
+
   body {
     @apply m-0 font-sans;
     background-color: transparent;
     width: 400px;
+    user-select: none;
   }
 
   :root.dark body {
     @apply text-white;
+  }
+
+  input,
+  textarea,
+  select {
+    user-select: text;
+  }
+
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--focus-ring),
+      0 0 0 6px var(--focus-ring-outer);
+    transition: box-shadow 150ms ease;
   }
 }
