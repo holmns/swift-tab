@@ -15,6 +15,8 @@ import {
   writeNativeSettings,
 } from "./shared/nativeMessaging.js";
 
+let settingsState: HudSettings = { ...DEFAULT_SETTINGS };
+
 const mruStore = (() => {
   const stacks = new Map<WindowId, TabId[]>();
   const storageArea = (chrome.storage.session ??
@@ -738,6 +740,9 @@ function registerListeners(): void {
       if (isWindowClosing || !closedActiveTab) {
         return;
       }
+      if (!settingsState.goToLastTabOnClose) {
+        return;
+      }
 
       const fallbackTabId = mruStore.getStack(windowId)[0];
       if (typeof fallbackTabId !== "number") return;
@@ -858,7 +863,17 @@ function registerSettingsSync(): void {
 
   let applyingNativeUpdate = false;
 
-  const syncKeys: (keyof HudSettings)[] = ["enabled", "hudDelay", "layout", "theme"];
+  chrome.storage.sync.get(DEFAULT_SETTINGS, (data) => {
+    settingsState = normalizeHudSettings(data, DEFAULT_SETTINGS);
+  });
+
+  const syncKeys: (keyof HudSettings)[] = [
+    "enabled",
+    "hudDelay",
+    "layout",
+    "theme",
+    "goToLastTabOnClose",
+  ];
 
   const pushStorageToNative = async (overrides?: Partial<HudSettings>): Promise<void> => {
     const nextSettings = await new Promise<HudSettings>((resolve) => {
@@ -866,11 +881,13 @@ function registerSettingsSync(): void {
         resolve(normalizeHudSettings({ ...data, ...overrides }, DEFAULT_SETTINGS));
       });
     });
+    settingsState = nextSettings;
     await writeNativeSettings(nextSettings);
   };
 
   const applyNativeUpdate = (settings: HudSettings): void => {
     const normalized = normalizeHudSettings(settings, DEFAULT_SETTINGS);
+    settingsState = normalized;
     applyingNativeUpdate = true;
     chrome.storage.sync.set(normalized, () => {
       applyingNativeUpdate = false;
@@ -895,6 +912,7 @@ function registerSettingsSync(): void {
     }
     if (!hasChange) return;
     if (applyingNativeUpdate) return;
+    settingsState = normalizeHudSettings({ ...settingsState, ...partial }, DEFAULT_SETTINGS);
     void pushStorageToNative(partial);
   });
 

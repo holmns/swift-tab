@@ -2,36 +2,36 @@
 import Foundation
 
 enum HudLayoutMode: String, CaseIterable, Identifiable {
-    case horizontal
     case vertical
-
+    case horizontal
+    
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .horizontal:
-            return "Horizontal grid"
         case .vertical:
             return "Vertical list"
+        case .horizontal:
+            return "Horizontal grid"
         }
     }
 }
 
 enum HudThemeMode: String, CaseIterable, Identifiable {
+    case system
     case light
     case dark
-    case system
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .system:
+            return "Follow device"
         case .light:
             return "Light"
         case .dark:
             return "Dark"
-        case .system:
-            return "Follow device"
         }
     }
 }
@@ -41,6 +41,7 @@ struct HudSettingsState {
     var hudDelay: Int
     var layout: HudLayoutMode
     var theme: HudThemeMode
+    var goToLastTabOnClose: Bool
 }
 
 enum HudSettingsDefaults {
@@ -50,13 +51,15 @@ enum HudSettingsDefaults {
     static let delayKey = "swiftTab.hudSettings.hudDelay"
     static let layoutKey = "swiftTab.hudSettings.layout"
     static let themeKey = "swiftTab.hudSettings.theme"
+    static let goToLastTabOnCloseKey = "swiftTab.hudSettings.goToLastTabOnClose"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
 
     static let defaults = HudSettingsState(
         enabled: true,
         hudDelay: 100,
         layout: .vertical,
-        theme: .system
+        theme: .system,
+        goToLastTabOnClose: true
     )
 }
 #endif

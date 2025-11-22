@@ -20,6 +20,7 @@ private enum NativeSettingsKeys {
     static let delayKey = "swiftTab.hudSettings.hudDelay"
     static let layoutKey = "swiftTab.hudSettings.layout"
     static let themeKey = "swiftTab.hudSettings.theme"
+    static let goToLastTabOnCloseKey = "swiftTab.hudSettings.goToLastTabOnClose"
     static let updatedKey = "swiftTab.hudSettings.updatedAt"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
 }
@@ -29,6 +30,7 @@ private struct NativeHudSettings {
     var hudDelay: Int
     var layout: String
     var theme: String
+    var goToLastTabOnClose: Bool
 }
 
 private final class NativeSettingsStore {
@@ -49,12 +51,14 @@ private final class NativeSettingsStore {
         let hudDelay = defaults.object(forKey: NativeSettingsKeys.delayKey) as? Int ?? 100
         let layout = defaults.string(forKey: NativeSettingsKeys.layoutKey) ?? "vertical"
         let theme = defaults.string(forKey: NativeSettingsKeys.themeKey) ?? "system"
+        let goToLastTabOnClose = defaults.object(forKey: NativeSettingsKeys.goToLastTabOnCloseKey) as? Bool ?? true
 
         return NativeHudSettings(
             enabled: enabled,
             hudDelay: clampDelay(hudDelay),
             layout: layout,
-            theme: theme
+            theme: theme,
+            goToLastTabOnClose: goToLastTabOnClose
         )
     }
 
@@ -63,6 +67,7 @@ private final class NativeSettingsStore {
         defaults.set(clampDelay(settings.hudDelay), forKey: NativeSettingsKeys.delayKey)
         defaults.set(settings.layout, forKey: NativeSettingsKeys.layoutKey)
         defaults.set(settings.theme, forKey: NativeSettingsKeys.themeKey)
+        defaults.set(settings.goToLastTabOnClose, forKey: NativeSettingsKeys.goToLastTabOnCloseKey)
         defaults.set(Date().timeIntervalSince1970, forKey: NativeSettingsKeys.updatedKey)
         defaults.synchronize()
         DistributedNotificationCenter.default().post(name: NativeSettingsKeys.changedNotification, object: nil)
@@ -136,7 +141,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 enabled: incoming["enabled"] as? Bool ?? current.enabled,
                 hudDelay: parsedDelay,
                 layout: incoming["layout"] as? String ?? current.layout,
-                theme: incoming["theme"] as? String ?? current.theme
+                theme: incoming["theme"] as? String ?? current.theme,
+                goToLastTabOnClose: incoming["goToLastTabOnClose"] as? Bool ?? current.goToLastTabOnClose
             )
             settingsStore.save(merged)
             respond(context, payload: settingsPayload(type: "settings"))
@@ -161,7 +167,8 @@ private extension SafariWebExtensionHandler {
                 "enabled": settings.enabled,
                 "hudDelay": settings.hudDelay,
                 "layout": settings.layout,
-                "theme": settings.theme
+                "theme": settings.theme,
+                "goToLastTabOnClose": settings.goToLastTabOnClose
             ],
             "updatedAt": settingsStore.updatedAt
         ]
