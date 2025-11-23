@@ -58,11 +58,8 @@ final class HudSettingsStore {
     }
 
     func save(_ settings: HudSettingsState) {
-        let hasModifier: (ShortcutSetting) -> Bool = { shortcut in
-            shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift
-        }
-        guard settings.switchShortcut != settings.searchShortcut else { return }
-        guard hasModifier(settings.switchShortcut), hasModifier(settings.searchShortcut) else { return }
+        let validation = validateShortcuts(switchShortcut: settings.switchShortcut, searchShortcut: settings.searchShortcut)
+        guard validation.errors.isEmpty else { return }
         defaults.set(settings.enabled, forKey: HudSettingsDefaults.enabledKey)
         defaults.set(clampDelay(settings.hudDelay), forKey: HudSettingsDefaults.delayKey)
         defaults.set(settings.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)

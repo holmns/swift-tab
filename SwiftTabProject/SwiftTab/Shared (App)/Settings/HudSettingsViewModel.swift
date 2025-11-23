@@ -90,14 +90,8 @@ final class HudSettingsViewModel: ObservableObject {
         searchShortcut: ShortcutSetting
     ) {
         guard !isUpdatingFromStore else { return }
-        let hasModifier: (ShortcutSetting) -> Bool = { shortcut in
-            shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift
-        }
-        guard switchShortcut != searchShortcut else {
-            refreshFromStore()
-            return
-        }
-        guard hasModifier(switchShortcut), hasModifier(searchShortcut) else {
+        let validation = validateShortcuts(switchShortcut: switchShortcut, searchShortcut: searchShortcut)
+        guard validation.errors.isEmpty else {
             refreshFromStore()
             return
         }
