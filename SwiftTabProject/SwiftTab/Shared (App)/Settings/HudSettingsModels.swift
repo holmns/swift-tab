@@ -110,7 +110,7 @@ struct ShortcutSetting: Equatable {
         return setting.normalized(fallback: setting)
     }
 
-    private static func keyString(from event: NSEvent) -> String? {
+    static func keyString(from event: NSEvent) -> String? {
         // Prefer physical key codes for common keys not exposed via SpecialKey on older SDKs.
         switch event.keyCode {
         case 53:
@@ -337,5 +337,67 @@ enum HudSettingsDefaults {
         switchShortcut: defaultSwitchShortcut,
         searchShortcut: defaultSearchShortcut
     )
+}
+
+struct ShortcutValidation {
+    let errors: [String]
+    let warnings: [String]
+    var isValid: Bool { errors.isEmpty }
+}
+
+private func hasModifier(_ shortcut: ShortcutSetting) -> Bool {
+    shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift
+}
+
+private func matches(_ shortcut: ShortcutSetting, key: String, alt: Bool = false, ctrl: Bool = false, meta: Bool = false, shift: Bool = false) -> Bool {
+    shortcut.normalizedKey == key && shortcut.alt == alt && shortcut.ctrl == ctrl && shortcut.meta == meta && shortcut.shift == shift
+}
+
+private func conflictWarnings(for shortcut: ShortcutSetting, label: String) -> [String] {
+    var messages: [String] = []
+
+    let likelyConflicts: [(ShortcutSetting) -> Bool] = [
+        { matches($0, key: "space", meta: true) },
+        { matches($0, key: "space", ctrl: true) },
+        { matches($0, key: "tab", meta: true) || matches($0, key: "tab", meta: true, shift: true) },
+        { matches($0, key: "tab", ctrl: true) || matches($0, key: "tab", ctrl: true, shift: true) },
+        { matches($0, key: "escape", alt: true, meta: true) },
+        { matches($0, key: "h", meta: true) },
+        { matches($0, key: "w", meta: true) },
+        { matches($0, key: "q", meta: true) },
+        { matches($0, key: "l", meta: true) },
+        { matches($0, key: "t", meta: true) || matches($0, key: "t", meta: true, shift: true) },
+        { matches($0, key: "f", meta: true) },
+        { matches($0, key: "=", meta: true) || matches($0, key: "+", meta: true) || matches($0, key: "-", meta: true) },
+        { matches($0, key: "[", meta: true) || matches($0, key: "]", meta: true) }
+    ]
+
+    if likelyConflicts.contains(where: { $0(shortcut) }) {
+        messages.append("\(label) may conflict with system or app shortcuts.")
+    }
+
+    return messages
+}
+
+func validateShortcuts(switchShortcut: ShortcutSetting, searchShortcut: ShortcutSetting) -> ShortcutValidation {
+    var errors: [String] = []
+    var warnings: [String] = []
+
+    if switchShortcut == searchShortcut {
+        errors.append("Shortcuts must differ. Pick a different combo for search or switch.")
+    }
+
+    if !hasModifier(switchShortcut) {
+        errors.append("Tab switcher shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
+    }
+
+    if !hasModifier(searchShortcut) {
+        errors.append("Search shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
+    }
+
+    warnings.append(contentsOf: conflictWarnings(for: switchShortcut, label: "Tab switcher shortcut"))
+    warnings.append(contentsOf: conflictWarnings(for: searchShortcut, label: "Search shortcut"))
+
+    return ShortcutValidation(errors: errors, warnings: warnings)
 }
 #endif

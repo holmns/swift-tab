@@ -134,8 +134,8 @@ private struct EnablementStep: Identifiable {
     
     static let sample: [EnablementStep] = [
         .init(number: 1, title: "Enable SwiftTab", detail: "Safari → Settings → Extensions → SwiftTab → check the box.", color: Color(red: 0.55, green: 0.34, blue: 0.96)),
-        .init(number: 2, title: "Approve Shortcut", detail: "Assign a shortcut under Safari → Settings → Extensions → SwiftTab → Shortcuts.", color: Color(red: 0.26, green: 0.58, blue: 0.9)),
-        .init(number: 3, title: "Practice Switching", detail: "Hold ⌥ to keep the HUD visible, release to confirm the highlighted tab.", color: Color(red: 0.23, green: 0.64, blue: 0.5))
+        .init(number: 2, title: "Approve Shortcut", detail: "Use default shortcuts or assign shortcuts in the settings below.", color: Color(red: 0.26, green: 0.58, blue: 0.9)),
+        .init(number: 3, title: "Switch Tabs Swiftly", detail: "Press the shortcut to switch between tabs or search them.", color: Color(red: 0.23, green: 0.64, blue: 0.5))
     ]
 }
 
@@ -144,64 +144,68 @@ private struct HudSettingsCard: View {
     @State private var showAdvanced = false
     @State private var showWarning = false
     @State private var warningMessage: String = ""
+    @State private var warningLevel: BannerLevel = .warning
     @State private var warningTask: DispatchWorkItem?
+    @State private var activeRecorderID: UUID?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("SwiftTab Settings")
                 .font(.title.weight(.bold))
             
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Layout")
-                    .font(.headline)
-                Picker("Layout", selection: $viewModel.layout) {
+            Text("Appearance")
+                .font(.title3.bold())
+                .padding(.top, 4)
+            
+            SettingRow(title: "Layout", subtitle: "Vertical keeps long titles readable, horizontal fits more tabs on screen.") {
+                Picker("", selection: $viewModel.layout) {
                     ForEach(HudLayoutMode.allCases) { layout in
                         Text(layout.label).tag(layout)
                     }
                 }
                 .pickerStyle(.segmented)
                 .controlSize(.regular)
-                Text("Vertical keeps long titles readable, horizontal fits more tabs on screen.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
-            
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Theme")
-                    .font(.headline)
-                Picker("Theme", selection: $viewModel.theme) {
+
+            SettingRow(title: "Theme", subtitle: "Customize how the UI looks") {
+                Picker("", selection: $viewModel.theme) {
                     ForEach(HudThemeMode.allCases) { theme in
                         Text(theme.label).tag(theme)
                     }
                 }
                 .pickerStyle(.segmented)
                 .controlSize(.regular)
-                Text("Follow device tracks macOS appearance automatically.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
-
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Shortcuts")
-                    .font(.headline)
-                ShortcutRecorderRow(
-                    title: "Tab switcher",
-                    subtitle: "Hold the modifiers to keep the HUD visible, release to confirm the highlighted tab.",
+            
+            separator
+            
+            Text("Shortcuts")
+                .font(.title3.bold())
+                .padding(.top, 4)
+            
+            SettingRow(title: "Tab switcher", subtitle: "Hold the modifiers to keep the UI visible, release to confirm the highlighted tab.") {
+                ShortcutRecorderField(
                     shortcut: $viewModel.switchShortcut,
+                    activeRecorderID: $activeRecorderID,
                     defaultShortcut: HudSettingsDefaults.defaultSwitchShortcut
                 )
-                ShortcutRecorderRow(
-                    title: "Search tabs",
-                    subtitle: "Opens the searchable HUD immediately.",
+            }
+            .padding(.bottom, 24)
+            
+            SettingRow(title: "Search tabs", subtitle: "Opens the searchable UI immediately.") {
+                ShortcutRecorderField(
                     shortcut: $viewModel.searchShortcut,
+                    activeRecorderID: $activeRecorderID,
                     defaultShortcut: HudSettingsDefaults.defaultSearchShortcut
                 )
-                if showWarning {
-                    Text(warningMessage)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Color.red)
-                        .padding(.top, 4)
-                }
+            }
+            .padding(.bottom, 8)
+
+            if showWarning {
+                Text(warningMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(warningLevel == .error ? Color.red : Color.yellow)
+                    .padding(.top, 4)
             }
             
             VStack(alignment: .leading, spacing: 10) {
@@ -217,37 +221,30 @@ private struct HudSettingsCard: View {
                             .rotationEffect(.degrees(showAdvanced ? 180 : 0))
                             .animation(.easeInOut(duration: 0.2), value: showAdvanced)
                     }
-                    .padding(.trailing, 12)
+                    .padding(.trailing, 20)
                     .padding(.vertical, 10)
+                    .contentShape(Rectangle().inset(by: -50))
                 }
                 .buttonStyle(PlainButtonStyle())
 
                 if showAdvanced {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle(isOn: $viewModel.goToLastTabOnClose) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Return to last used tab")
-                                    .font(.body.weight(.semibold))
-                                Text("When you close the active tab, focus the most recently used tab automatically.")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
+                    VStack(alignment: .leading, spacing: 18) {
+                        
+                        SettingRow(title: "Return to last used tab", subtitle: "When you close the active tab, focus the most recently used tab automatically.") {
+                            Toggle(isOn: $viewModel.goToLastTabOnClose) {}
+                                .toggleStyle(.switch)
                         }
-                        .toggleStyle(.switch)
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("HUD Delay")
-                                .font(.headline)
-                            HStack {
-                                Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
+                        SettingRow(title: "UI Delay", subtitle: "Delay before the UI shows after holding modifier key during tab switching.") {
+                            HStack(spacing: 5) {
                                 Text("\(Int(viewModel.hudDelay)) ms")
                                     .font(.footnote.monospacedDigit())
                                     .frame(width: 70, alignment: .trailing)
                                     .foregroundStyle(.secondary)
+                                Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
+                                    .frame(maxWidth: 300)
                             }
-                            Text("Delay before the HUD shows after holding ⌥ during tab switching.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+
                         }
                     }
                     .transition(.opacity)
@@ -265,43 +262,46 @@ private struct HudSettingsCard: View {
                 )
         )
         .onChange(of: viewModel.switchShortcut) {
-            validateShortcuts()
+            validateAndShowError()
         }
         .onChange(of: viewModel.searchShortcut) {
-            validateShortcuts()
+            validateAndShowError()
         }
         .onAppear {
-            validateShortcuts()
+            validateAndShowError()
         }
         .onDisappear {
             warningTask?.cancel()
         }
     }
+    
+    var separator: some View {
+        Rectangle()
+            .foregroundStyle(.quaternary)
+            .frame(height: 1)
+    }
 
-    private func validateShortcuts() {
-        let hasModifiers: (ShortcutSetting) -> Bool = { shortcut in
-            shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift
-        }
+    private func validateAndShowError() {
+        let validation = validateShortcuts(
+            switchShortcut: viewModel.switchShortcut,
+            searchShortcut: viewModel.searchShortcut
+        )
 
-        if viewModel.switchShortcut == viewModel.searchShortcut {
-            showWarningMessage("Shortcuts must differ. Pick a different combo for search or switch.")
+        if let error = validation.errors.first {
+            showWarningMessage(error, level: .error)
             return
         }
 
-        if !hasModifiers(viewModel.switchShortcut) {
-            showWarningMessage("Tab switcher shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
-            return
-        }
-
-        if !hasModifiers(viewModel.searchShortcut) {
-            showWarningMessage("Search shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
+        if let warning = validation.warnings.first {
+            showWarningMessage(warning, level: .warning)
             return
         }
     }
 
-    private func showWarningMessage(_ message: String) {
+    private func showWarningMessage(_ message: String, level: BannerLevel) {
         warningTask?.cancel()
         warningMessage = message
+        warningLevel = level
         withAnimation(.spring(duration: 0.2)) {
             showWarning = true
         }
@@ -315,127 +315,145 @@ private struct HudSettingsCard: View {
     }
 }
 
-private struct ShortcutRecorderRow: View {
+private struct SettingRow<Content: View>: View {
     let title: String
     let subtitle: String
-    @Binding var shortcut: ShortcutSetting
-    let defaultShortcut: ShortcutSetting
-
+    @ViewBuilder let selector: () -> Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.semibold))
-                Spacer()
-                Button {
-                    shortcut = defaultShortcut
-                } label: {
-                    Text("Reset")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-
-            ShortcutRecorderField(shortcut: $shortcut)
-
-            Text(subtitle)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Spacer()
+            selector()
         }
     }
 }
 
+private enum BannerLevel {
+    case warning
+    case error
+}
+
 private struct ShortcutRecorderField: View {
     @Binding var shortcut: ShortcutSetting
-    @State private var isRecording = false
+    @Binding var activeRecorderID: UUID?
+    @State private var recorderID = UUID()
     @State private var eventMonitor: Any?
+    let defaultShortcut: ShortcutSetting
+    
+    private var isRecording: Bool { activeRecorderID == recorderID }
 
     var body: some View {
-        HStack(spacing: 12) {
+        Button {
+            if isRecording {
+                activeRecorderID = nil
+            } else {
+                activeRecorderID = recorderID
+            }
+        } label: {
             HStack(spacing: 4) {
                 Group {
+                    Text("⇧")
+                        .foregroundStyle(shortcut.shift ? .primary : .quaternary)
                     Text("⌃")
                         .foregroundStyle(shortcut.ctrl ? .primary : .quaternary)
                     Text("⌥")
                         .foregroundStyle(shortcut.alt ? .primary : .quaternary)
-                    Text("⇧")
-                        .foregroundStyle(shortcut.shift ? .primary : .quaternary)
                     Text("⌘")
                         .foregroundStyle(shortcut.meta ? .primary : .quaternary)
                 }
                 .font(.title3.bold())
                 Text(shortcut.keyDisplayLabel)
                     .font(.body.bold())
-
+                
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .frame(minWidth: 180, alignment: .leading)
+            .frame(minWidth: 180, alignment: .center)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(.ultraThinMaterial)
             )
-
-            Spacer()
-
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isRecording ? Color.secondary : Color.clear, lineWidth: 2)
+            }
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .trailing) {
             Button {
+                shortcut = defaultShortcut
                 if isRecording {
-                    stopRecording()
-                } else {
-                    startRecording()
+                    activeRecorderID = nil
                 }
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isRecording ? "dot.radiowaves.left.and.right" : "pencil")
-                    Text(isRecording ? "Recording…" : "Change")
-                }
-                .frame(minWidth: 120, minHeight: 24)
+                Text("Reset")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .buttonStyle(.plain)
+            .offset(y: -32)
         }
-        .padding(.horizontal, 4)
-        .overlay(alignment: .trailing) {
+        .overlay(alignment: .center) {
             if isRecording {
-                Text("Press a shortcut, Esc to cancel")
+                Text("Recording... Esc to cancel")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .offset(y: 28)
+                    .offset(y: 32)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
         }
         .onDisappear {
-            stopRecording()
+            removeMonitor()
+            if isRecording {
+                activeRecorderID = nil
+            }
+        }
+        .onChange(of: activeRecorderID) { _, newValue in
+            syncMonitor(isActive: newValue == recorderID)
+        }
+        .onAppear {
+            syncMonitor(isActive: isRecording)
         }
     }
 
-    private func startRecording() {
-        stopRecording()
-        isRecording = true
+    private func syncMonitor(isActive: Bool) {
+        if isActive {
+            startMonitor()
+        } else {
+            removeMonitor()
+        }
+    }
+
+    private func startMonitor() {
+        guard eventMonitor == nil else { return }
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             handle(event: event)
         }
     }
 
-    private func stopRecording() {
+    private func removeMonitor() {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
         }
-        isRecording = false
     }
 
     private func handle(event: NSEvent) -> NSEvent? {
         if event.keyCode == 53 { // Escape cancels recording.
-            stopRecording()
+            activeRecorderID = nil
             return nil
         }
         guard let captured = ShortcutSetting.from(event: event) else {
             return nil
         }
         shortcut = captured
-        stopRecording()
+        activeRecorderID = nil
         return nil
     }
 }
@@ -496,6 +514,6 @@ private extension MacOnboardingViewModel.ExtensionState {
 
 #Preview("DashBoardView") {
     DashboardView(viewModel: MacOnboardingViewModel())
-        .frame(minWidth: 600, minHeight: 400)
+        .frame(minWidth: 800, minHeight: 1000)
 }
 #endif

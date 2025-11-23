@@ -13,7 +13,7 @@ struct WelcomeScreen: View {
         VStack(alignment: .leading, spacing: 32) {
             HeroHeader(phase: heroPhase, textVisible: textVisible)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, heroPhase == .lifted ? 24 : 0)
+                .padding(.top, heroPhase == .lifted ? 100 : 80)
 
             Group {
                 HStack(spacing: 16) {
@@ -28,10 +28,11 @@ struct WelcomeScreen: View {
                             .font(.headline)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
+                            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.brandPrimary))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
 
-                    Text("Safari 17+ on macOS 14+ recommended.")
+                    Text("MacOS 14+ recommended.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -52,12 +53,12 @@ struct WelcomeScreen: View {
     private func runHeroSequence() {
         guard heroPhase == .hidden else { return }
 
-        withAnimation(.easeInOut(duration: 5)) {
+        withAnimation(.spring(duration: 5)) {
             heroPhase = .focus
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 3)) {
+            withAnimation(.spring(duration: 3)) {
                 textVisible = true
             }
         }
@@ -69,7 +70,7 @@ struct WelcomeScreen: View {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation(.easeOut(duration: 0.6)) {
+            withAnimation(.spring(duration: 0.6)) {
                 contentVisible = true
             }
         }
@@ -79,13 +80,12 @@ struct WelcomeScreen: View {
 private struct HeroHeader: View {
     let phase: HeroAnimationPhase
     let textVisible: Bool
-    @State private var shimmerOffset: CGFloat = -220
 
     private let titleGradient = LinearGradient(
         colors: [
-            Color(red: 1.0, green: 0.82, blue: 0.83),
-            Color(red: 0.96, green: 0.62, blue: 0.76),
-            Color(red: 1.0, green: 0.82, blue: 0.83)
+            Color.brandPrimary,
+            Color.brandSecondary,
+            Color.brandPrimary,
         ],
         startPoint: .leading,
         endPoint: .trailing
@@ -97,50 +97,26 @@ private struct HeroHeader: View {
                 .resizable()
                 .frame(width: 140, height: 140)
                 .opacity(phase == .hidden ? 0 : 1)
-                .scaleEffect(phase == .focus ? 1.08 : 1.0)
-                .offset(y: phase == .lifted ? 0 : 30)
-                .animation(.easeInOut(duration: 0.8), value: phase)
+                .scaleEffect(phase == .focus ? 1.25 : 1.0)
+                .offset(y: phase == .focus ? -20 : 0)
+                .animation(.spring(duration: 0.8), value: phase)
 
             VStack(spacing: 8) {
-                Text("Your Mac. But Better.")
+                Text("Go through tabs, swiftly.")
                     .font(.system(size: 42, weight: .bold))
                     .foregroundStyle(titleGradient)
                     .shadow(color: .black.opacity(0.4), radius: 18, x: 0, y: 10)
                     .opacity(textVisible ? 1 : 0)
-                    .offset(y: textVisible ? 0 : 26)
+                    .offset(y: textVisible ? 0 : 20)
 
                 Text("Let SwiftTab speed up the way you move through Safari.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .opacity(textVisible ? 0.95 : 0)
-                    .offset(y: textVisible ? 0 : 22)
-            }
-
-            Label {
-                Text("Hold ⌥ (Option) + Tab once the extension is enabled.")
-            } icon: {
-                Image(systemName: "option")
-            }
-            .font(.body.weight(.medium))
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(.thinMaterial)
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                    )
-            )
-            .opacity(phase == .lifted && textVisible ? 1 : 0)
-            .offset(y: phase == .lifted ? 0 : 26)
-        }
-        .animation(.easeInOut(duration: 0.6), value: textVisible)
-        .onAppear {
-            withAnimation(.linear(duration: 3.6).repeatForever(autoreverses: false)) {
-                shimmerOffset = 220
+                    .offset(y: textVisible ? 0 : 20)
             }
         }
+        .animation(.spring(duration: 0.6), value: textVisible)
     }
 }
 
@@ -169,7 +145,7 @@ private struct FeatureCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20))
+        .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
     }
 }
 
