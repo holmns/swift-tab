@@ -11,7 +11,10 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Override point for customization after application launch.
+        // Force the entire app (AppKit + SwiftUI) to render in Dark Mode regardless of system setting.
+        let darkAppearance = NSAppearance(named: .darkAqua)
+        NSApp.appearance = darkAppearance
+        NSApp.windows.forEach { $0.appearance = darkAppearance }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

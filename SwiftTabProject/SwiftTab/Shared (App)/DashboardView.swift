@@ -208,47 +208,47 @@ private struct HudSettingsCard: View {
                     .padding(.top, 4)
             }
             
-            VStack(alignment: .leading, spacing: 10) {
-                Button {
-                    withAnimation(.spring(duration: 0.2)) {
-                        showAdvanced.toggle()
-                    }
-                } label: {
-                    HStack {
-                        Text("Advanced Settings")
-                            .font(.headline)
-                        Image(systemName: "chevron.down")
-                            .rotationEffect(.degrees(showAdvanced ? 180 : 0))
-                            .animation(.easeInOut(duration: 0.2), value: showAdvanced)
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle().inset(by: -50))
+            separator
+            
+            Button {
+                withAnimation(.spring(duration: 0.2)) {
+                    showAdvanced.toggle()
                 }
-                .buttonStyle(PlainButtonStyle())
-
-                if showAdvanced {
-                    VStack(alignment: .leading, spacing: 18) {
+            } label: {
+                HStack {
+                    Text("Advanced Settings")
+                        .font(.headline)
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(showAdvanced ? 180 : 0))
+                        .animation(.easeInOut(duration: 0.2), value: showAdvanced)
+                }
+                .padding(.trailing, 20)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle().inset(by: -50))
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            if showAdvanced {
+                VStack(alignment: .leading, spacing: 18) {
+                    
+                    SettingRow(title: "Return to last used tab", subtitle: "When you close the active tab, focus the most recently used tab automatically.") {
+                        Toggle(isOn: $viewModel.goToLastTabOnClose) {}
+                            .toggleStyle(.switch)
+                    }
+                    
+                    SettingRow(title: "UI Delay", subtitle: "Delay before the UI shows after holding modifier key during tab switching.") {
+                        HStack(spacing: 5) {
+                            Text("\(Int(viewModel.hudDelay)) ms")
+                                .font(.footnote.monospacedDigit())
+                                .frame(width: 70, alignment: .trailing)
+                                .foregroundStyle(.secondary)
+                            Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
+                                .frame(maxWidth: 300)
+                        }
                         
-                        SettingRow(title: "Return to last used tab", subtitle: "When you close the active tab, focus the most recently used tab automatically.") {
-                            Toggle(isOn: $viewModel.goToLastTabOnClose) {}
-                                .toggleStyle(.switch)
-                        }
-
-                        SettingRow(title: "UI Delay", subtitle: "Delay before the UI shows after holding modifier key during tab switching.") {
-                            HStack(spacing: 5) {
-                                Text("\(Int(viewModel.hudDelay)) ms")
-                                    .font(.footnote.monospacedDigit())
-                                    .frame(width: 70, alignment: .trailing)
-                                    .foregroundStyle(.secondary)
-                                Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
-                                    .frame(maxWidth: 300)
-                            }
-
-                        }
                     }
-                    .transition(.opacity)
                 }
+                .transition(.opacity)
             }
         }
         .padding(24)
@@ -514,6 +514,6 @@ private extension MacOnboardingViewModel.ExtensionState {
 
 #Preview("DashBoardView") {
     DashboardView(viewModel: MacOnboardingViewModel())
-        .frame(minWidth: 800, minHeight: 1000)
+        .frame(minWidth: 1200, minHeight: 1000)
 }
 #endif
