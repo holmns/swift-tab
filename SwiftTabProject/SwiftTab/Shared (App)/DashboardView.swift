@@ -142,8 +142,9 @@ private struct EnablementStep: Identifiable {
 private struct HudSettingsCard: View {
     @ObservedObject var viewModel: HudSettingsViewModel
     @State private var showAdvanced = false
-    @State private var showDuplicateWarning = false
-    @State private var duplicateWarningTask: DispatchWorkItem?
+    @State private var showWarning = false
+    @State private var warningMessage: String = ""
+    @State private var warningTask: DispatchWorkItem?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -195,8 +196,8 @@ private struct HudSettingsCard: View {
                     shortcut: $viewModel.searchShortcut,
                     defaultShortcut: HudSettingsDefaults.defaultSearchShortcut
                 )
-                if showDuplicateWarning {
-                    Text("Shortcuts must differ. Pick a different combo for search or switch.")
+                if showWarning {
+                    Text(warningMessage)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.red)
                         .padding(.top, 4)
@@ -264,31 +265,52 @@ private struct HudSettingsCard: View {
                 )
         )
         .onChange(of: viewModel.switchShortcut) {
-            handleDuplicateIfNeeded()
+            validateShortcuts()
         }
         .onChange(of: viewModel.searchShortcut) {
-            handleDuplicateIfNeeded()
+            validateShortcuts()
         }
         .onAppear {
-            handleDuplicateIfNeeded()
+            validateShortcuts()
         }
         .onDisappear {
-            duplicateWarningTask?.cancel()
+            warningTask?.cancel()
         }
     }
 
-    private func handleDuplicateIfNeeded() {
-        guard viewModel.switchShortcut == viewModel.searchShortcut else { return }
-        withAnimation(.spring(duration: 0.2)) {
-            showDuplicateWarning = true
+    private func validateShortcuts() {
+        let hasModifiers: (ShortcutSetting) -> Bool = { shortcut in
+            shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift
         }
-        duplicateWarningTask?.cancel()
+
+        if viewModel.switchShortcut == viewModel.searchShortcut {
+            showWarningMessage("Shortcuts must differ. Pick a different combo for search or switch.")
+            return
+        }
+
+        if !hasModifiers(viewModel.switchShortcut) {
+            showWarningMessage("Tab switcher shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
+            return
+        }
+
+        if !hasModifiers(viewModel.searchShortcut) {
+            showWarningMessage("Search shortcut needs at least one modifier (⌘, ⌥, ⌃, or ⇧).")
+            return
+        }
+    }
+
+    private func showWarningMessage(_ message: String) {
+        warningTask?.cancel()
+        warningMessage = message
+        withAnimation(.spring(duration: 0.2)) {
+            showWarning = true
+        }
         let task = DispatchWorkItem {
-            withAnimation() {
-                showDuplicateWarning = false
+            withAnimation {
+                showWarning = false
             }
         }
-        duplicateWarningTask = task
+        warningTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
     }
 }
@@ -331,7 +353,7 @@ private struct ShortcutRecorderField: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Group {
                     Text("⌃")
                         .foregroundStyle(shortcut.ctrl ? .primary : .quaternary)
@@ -342,7 +364,7 @@ private struct ShortcutRecorderField: View {
                     Text("⌘")
                         .foregroundStyle(shortcut.meta ? .primary : .quaternary)
                 }
-                .font(.headline)
+                .font(.title3.bold())
                 Text(shortcut.keyDisplayLabel)
                     .font(.body.bold())
 
@@ -437,7 +459,7 @@ private extension MacOnboardingViewModel.ExtensionState {
         case .unknown:
             return "Click Refresh to check Safari’s extension status."
         case .enabled:
-            return "You can start using ⌥ + Tab in Safari immediately."
+            return "You can start using SwiftTab in Safari."
         case .disabled:
             return "Open Safari Settings to enable the extension."
         case .error(let message):
@@ -474,6 +496,6 @@ private extension MacOnboardingViewModel.ExtensionState {
 
 #Preview("DashBoardView") {
     DashboardView(viewModel: MacOnboardingViewModel())
-        .frame(minWidth: 1257, minHeight: 768)
+        .frame(minWidth: 600, minHeight: 400)
 }
 #endif

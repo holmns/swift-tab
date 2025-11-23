@@ -110,6 +110,8 @@ function App() {
   const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const hasModifier = (shortcut: ShortcutSetting): boolean =>
+    shortcut.alt || shortcut.ctrl || shortcut.meta || shortcut.shift;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,6 +231,9 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (!hasModifier(switchShortcut) || !hasModifier(searchShortcut)) {
+      return;
+    }
     if (shortcutsEqual(switchShortcut, searchShortcut)) {
       return;
     }

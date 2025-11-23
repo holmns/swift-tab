@@ -125,28 +125,131 @@ struct ShortcutSetting: Equatable {
 
         if let specialKey = event.specialKey {
             switch specialKey {
+            case .backspace:
+                return "backspace"
+            case .carriageReturn, .newline, .enter:
+                return "enter"
             case .tab:
                 return "tab"
+            case .backTab:
+                return "backtab"
             case .delete:
-                return "backspace"
-            case .deleteForward:
                 return "delete"
-            case .home:
-                return "home"
-            case .end:
-                return "end"
-            case .pageUp:
-                return "pageup"
-            case .pageDown:
-                return "pagedown"
-            case .leftArrow:
-                return "arrowleft"
-            case .rightArrow:
-                return "arrowright"
+            case .deleteForward:
+                return "deleteforward"
             case .upArrow:
                 return "arrowup"
             case .downArrow:
                 return "arrowdown"
+            case .leftArrow:
+                return "arrowleft"
+            case .rightArrow:
+                return "arrowright"
+            case .pageUp:
+                return "pageup"
+            case .pageDown:
+                return "pagedown"
+            case .home:
+                return "home"
+            case .end:
+                return "end"
+            case .prev:
+                return "prev"
+            case .next:
+                return "next"
+            case .begin:
+                return "begin"
+            case .break:
+                return "break"
+            case .clearDisplay:
+                return "cleardisplay"
+            case .clearLine:
+                return "clearline"
+            case .deleteCharacter:
+                return "deletecharacter"
+            case .deleteLine:
+                return "deleteline"
+            case .execute:
+                return "execute"
+            case .find:
+                return "find"
+            case .formFeed:
+                return "formfeed"
+            case .help:
+                return "help"
+            case .insert:
+                return "insert"
+            case .insertCharacter:
+                return "insertcharacter"
+            case .insertLine:
+                return "insertline"
+            case .lineSeparator:
+                return "lineseparator"
+            case .menu:
+                return "menu"
+            case .modeSwitch:
+                return "modeswitch"
+            case .paragraphSeparator:
+                return "paragraphseparator"
+            case .pause:
+                return "pause"
+            case .print:
+                return "print"
+            case .printScreen:
+                return "printscreen"
+            case .redo:
+                return "redo"
+            case .reset:
+                return "reset"
+            case .scrollLock:
+                return "scrolllock"
+            case .select:
+                return "select"
+            case .stop:
+                return "stop"
+            case .sysReq:
+                return "sysreq"
+            case .system:
+                return "system"
+            case .undo:
+                return "undo"
+            case .user:
+                return "user"
+            case .f1: return "f1"
+            case .f2: return "f2"
+            case .f3: return "f3"
+            case .f4: return "f4"
+            case .f5: return "f5"
+            case .f6: return "f6"
+            case .f7: return "f7"
+            case .f8: return "f8"
+            case .f9: return "f9"
+            case .f10: return "f10"
+            case .f11: return "f11"
+            case .f12: return "f12"
+            case .f13: return "f13"
+            case .f14: return "f14"
+            case .f15: return "f15"
+            case .f16: return "f16"
+            case .f17: return "f17"
+            case .f18: return "f18"
+            case .f19: return "f19"
+            case .f20: return "f20"
+            case .f21: return "f21"
+            case .f22: return "f22"
+            case .f23: return "f23"
+            case .f24: return "f24"
+            case .f25: return "f25"
+            case .f26: return "f26"
+            case .f27: return "f27"
+            case .f28: return "f28"
+            case .f29: return "f29"
+            case .f30: return "f30"
+            case .f31: return "f31"
+            case .f32: return "f32"
+            case .f33: return "f33"
+            case .f34: return "f34"
+            case .f35: return "f35"
             default:
                 break
             }
@@ -180,9 +283,9 @@ struct ShortcutSetting: Equatable {
             return "Esc"
         case "enter":
             return "Enter"
-        case "backspace":
+        case "backspace", "delete":
             return "Delete"
-        case "delete":
+        case "deleteforward":
             return "Forward Delete"
         case "arrowleft":
             return "←"
@@ -213,14 +316,14 @@ struct HudSettingsState {
 
 enum HudSettingsDefaults {
     static let groupIdentifier = "group.com.holmns.swifttab"
-    static let storageUpdatedAtKey = "swiftTab.hudSettings.updatedAt"
-    static let enabledKey = "swiftTab.hudSettings.enabled"
-    static let delayKey = "swiftTab.hudSettings.hudDelay"
-    static let layoutKey = "swiftTab.hudSettings.layout"
-    static let themeKey = "swiftTab.hudSettings.theme"
-    static let goToLastTabOnCloseKey = "swiftTab.hudSettings.goToLastTabOnClose"
-    static let switchShortcutKey = "swiftTab.hudSettings.switchShortcut"
-    static let searchShortcutKey = "swiftTab.hudSettings.searchShortcut"
+    static let storageUpdatedAtKey = "swifttab.hudSettings.updatedAt"
+    static let enabledKey = "swifttab.hudSettings.enabled"
+    static let delayKey = "swifttab.hudSettings.hudDelay"
+    static let layoutKey = "swifttab.hudSettings.layout"
+    static let themeKey = "swifttab.hudSettings.theme"
+    static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
+    static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
+    static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
     static let defaultSwitchShortcut = ShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
     static let defaultSearchShortcut = ShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
