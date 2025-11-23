@@ -581,7 +581,6 @@ const faviconStore = (() => {
     await ensureLoaded();
 
     if (tab.favIconUrl?.startsWith("data:")) {
-      console.log("[SwiftTab] Using data URI favicon for tab", tab.id);
       return tab.favIconUrl;
     }
 
@@ -595,7 +594,6 @@ const faviconStore = (() => {
     const hostname = extractHostname(canonicalUrl);
 
     if (!hostname) {
-      console.log("[SwiftTab] No Hostname. Fallback favicon for tab", tab.title);
       return null;
     }
 

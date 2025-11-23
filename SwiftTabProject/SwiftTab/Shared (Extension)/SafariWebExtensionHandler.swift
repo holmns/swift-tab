@@ -18,14 +18,14 @@ private enum NativeMessageType: String {
 
 private enum NativeSettingsKeys {
     static let groupIdentifier = "group.com.holmns.swifttab"
-    static let enabledKey = "swiftTab.hudSettings.enabled"
-    static let delayKey = "swiftTab.hudSettings.hudDelay"
-    static let layoutKey = "swiftTab.hudSettings.layout"
-    static let themeKey = "swiftTab.hudSettings.theme"
-    static let goToLastTabOnCloseKey = "swiftTab.hudSettings.goToLastTabOnClose"
-    static let switchShortcutKey = "swiftTab.hudSettings.switchShortcut"
-    static let searchShortcutKey = "swiftTab.hudSettings.searchShortcut"
-    static let updatedKey = "swiftTab.hudSettings.updatedAt"
+    static let enabledKey = "swifttab.hudSettings.enabled"
+    static let delayKey = "swifttab.hudSettings.hudDelay"
+    static let layoutKey = "swifttab.hudSettings.layout"
+    static let themeKey = "swifttab.hudSettings.theme"
+    static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
+    static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
+    static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
+    static let updatedKey = "swifttab.hudSettings.updatedAt"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
 }
 
