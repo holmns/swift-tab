@@ -6,6 +6,7 @@ import {
   type LayoutMode,
   shortcutsEqual,
   type ShortcutSetting,
+  type SearchWeights,
   type ThemeMode,
 } from "@shared";
 import {
@@ -107,6 +108,7 @@ function App() {
   const [theme, setTheme] = useState<ThemeMode>(DEFAULT_SETTINGS.theme);
   const [switchShortcut, setSwitchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.switchShortcut);
   const [searchShortcut, setSearchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.searchShortcut);
+  const [searchWeights, setSearchWeights] = useState<SearchWeights>(DEFAULT_SETTINGS.searchWeights);
   const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -208,6 +210,7 @@ function App() {
       setTheme(normalized.theme);
       setSwitchShortcut(normalized.switchShortcut);
       setSearchShortcut(normalized.searchShortcut);
+      setSearchWeights(normalized.searchWeights);
       goToLastTabOnCloseRef.current = normalized.goToLastTabOnClose;
       setHydrated(true);
     });
@@ -220,6 +223,7 @@ function App() {
       setTheme(settings.theme);
       setSwitchShortcut(settings.switchShortcut);
       setSearchShortcut(settings.searchShortcut);
+      setSearchWeights(settings.searchWeights);
       goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
     });
 
@@ -245,6 +249,7 @@ function App() {
       theme,
       switchShortcut,
       searchShortcut,
+      searchWeights,
       goToLastTabOnClose: goToLastTabOnCloseRef.current,
     }).catch((error) => {
       if (cancelled) return;
@@ -257,6 +262,7 @@ function App() {
       theme,
       switchShortcut,
       searchShortcut,
+      searchWeights,
       goToLastTabOnClose: goToLastTabOnCloseRef.current,
     }).catch((error) => {
       if (cancelled) return;
@@ -265,7 +271,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, enabled, hudDelay, layout, theme, switchShortcut, searchShortcut]);
+  }, [hydrated, enabled, hudDelay, layout, theme, switchShortcut, searchShortcut, searchWeights]);
 
   const toggleEnabled = (): void => {
     if (isLoading) return;
