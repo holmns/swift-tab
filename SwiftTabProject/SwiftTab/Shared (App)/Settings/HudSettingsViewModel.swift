@@ -10,6 +10,7 @@ final class HudSettingsViewModel: ObservableObject {
     @Published var goToLastTabOnClose: Bool
     @Published var switchShortcut: ShortcutSetting
     @Published var searchShortcut: ShortcutSetting
+    @Published var searchWeights: SearchWeights
 
     private var cancellables: Set<AnyCancellable> = []
     private var enabled: Bool
@@ -27,6 +28,7 @@ final class HudSettingsViewModel: ObservableObject {
         goToLastTabOnClose = settings.goToLastTabOnClose
         switchShortcut = settings.switchShortcut
         searchShortcut = settings.searchShortcut
+        searchWeights = settings.searchWeights
 
         bindStore()
         bindPersist()
@@ -46,14 +48,15 @@ final class HudSettingsViewModel: ObservableObject {
     }
 
     private func bindPersist() {
-        Publishers.CombineLatest(
+        Publishers.CombineLatest3(
             Publishers.CombineLatest4($hudDelay, $layout, $theme, $goToLastTabOnClose),
-            Publishers.CombineLatest($switchShortcut, $searchShortcut)
+            Publishers.CombineLatest($switchShortcut, $searchShortcut),
+            $searchWeights
         )
             .receive(on: RunLoop.main)
             .dropFirst()
             .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
-            .sink { [weak self] primary, shortcuts in
+            .sink { [weak self] primary, shortcuts, weights in
                 let (delay, layout, theme, goToLastTabOnClose) = primary
                 let (switchShortcut, searchShortcut) = shortcuts
                 self?.persist(
@@ -62,7 +65,8 @@ final class HudSettingsViewModel: ObservableObject {
                     theme: theme,
                     goToLastTabOnClose: goToLastTabOnClose,
                     switchShortcut: switchShortcut,
-                    searchShortcut: searchShortcut
+                    searchShortcut: searchShortcut,
+                    searchWeights: weights
                 )
             }
             .store(in: &cancellables)
@@ -78,6 +82,7 @@ final class HudSettingsViewModel: ObservableObject {
         goToLastTabOnClose = latest.goToLastTabOnClose
         switchShortcut = latest.switchShortcut
         searchShortcut = latest.searchShortcut
+        searchWeights = latest.searchWeights
         isUpdatingFromStore = false
     }
 
@@ -87,7 +92,8 @@ final class HudSettingsViewModel: ObservableObject {
         theme: HudThemeMode,
         goToLastTabOnClose: Bool,
         switchShortcut: ShortcutSetting,
-        searchShortcut: ShortcutSetting
+        searchShortcut: ShortcutSetting,
+        searchWeights: SearchWeights
     ) {
         guard !isUpdatingFromStore else { return }
         let validation = validateShortcuts(switchShortcut: switchShortcut, searchShortcut: searchShortcut)
@@ -103,7 +109,8 @@ final class HudSettingsViewModel: ObservableObject {
             theme: theme,
             goToLastTabOnClose: goToLastTabOnClose,
             switchShortcut: switchShortcut,
-            searchShortcut: searchShortcut
+            searchShortcut: searchShortcut,
+            searchWeights: searchWeights
         )
         store.save(next)
     }

@@ -37,6 +37,65 @@ enum HudThemeMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum SearchPriority: String, CaseIterable, Identifiable {
+    case off
+    case low
+    case medium
+    case high
+
+    var id: String { rawValue }
+
+    var weight: Int {
+        switch self {
+        case .off: return 0
+        case .low: return 1
+        case .medium: return 3
+        case .high: return 5
+        }
+    }
+
+    static func fromWeight(_ weight: Int) -> SearchPriority {
+        switch weight {
+        case ..<1:
+            return .off
+        case 1:
+            return .low
+        case 2...4:
+            return .medium
+        default:
+            return .high
+        }
+    }
+}
+
+struct SearchWeights: Equatable {
+    var title: SearchPriority
+    var hostname: SearchPriority
+    var url: SearchPriority
+
+    static let `default` = SearchWeights(title: .medium, hostname: .high, url: .low)
+
+    var storageValue: [String: Any] {
+        [
+            "title": title.weight,
+            "hostname": hostname.weight,
+            "url": url.weight
+        ]
+    }
+
+    static func fromStorage(_ value: Any?, fallback: SearchWeights = .default) -> SearchWeights {
+        guard let dict = value as? [String: Any] else { return fallback }
+        let titleWeight = dict["title"] as? Int ?? fallback.title.weight
+        let hostnameWeight = dict["hostname"] as? Int ?? fallback.hostname.weight
+        let urlWeight = dict["url"] as? Int ?? fallback.url.weight
+        return SearchWeights(
+            title: SearchPriority.fromWeight(titleWeight),
+            hostname: SearchPriority.fromWeight(hostnameWeight),
+            url: SearchPriority.fromWeight(urlWeight)
+        )
+    }
+}
+
 struct ShortcutSetting: Equatable {
     var key: String
     var alt: Bool
@@ -312,6 +371,7 @@ struct HudSettingsState {
     var goToLastTabOnClose: Bool
     var switchShortcut: ShortcutSetting
     var searchShortcut: ShortcutSetting
+    var searchWeights: SearchWeights
 }
 
 enum HudSettingsDefaults {
@@ -324,9 +384,11 @@ enum HudSettingsDefaults {
     static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
     static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
     static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
+    static let searchWeightsKey = "swifttab.hudSettings.searchWeights"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
     static let defaultSwitchShortcut = ShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
     static let defaultSearchShortcut = ShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
+    static let defaultSearchWeights = SearchWeights.default
 
     static let defaults = HudSettingsState(
         enabled: true,
@@ -335,7 +397,8 @@ enum HudSettingsDefaults {
         theme: .system,
         goToLastTabOnClose: true,
         switchShortcut: defaultSwitchShortcut,
-        searchShortcut: defaultSearchShortcut
+        searchShortcut: defaultSearchShortcut,
+        searchWeights: defaultSearchWeights
     )
 }
 

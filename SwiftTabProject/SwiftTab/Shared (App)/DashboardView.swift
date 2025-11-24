@@ -153,52 +153,76 @@ private struct HudSettingsCard: View {
             Text("SwiftTab Settings")
                 .font(.title.weight(.bold))
             
-            Text("Appearance")
-                .font(.title3.bold())
-                .padding(.top, 4)
+            sectionTitle(title: "Appearance", desc: "Customize how the UI looks")
             
-            SettingRow(title: "Layout", subtitle: "Vertical keeps long titles readable, horizontal fits more tabs on screen.") {
-                Picker("", selection: $viewModel.layout) {
-                    ForEach(HudLayoutMode.allCases) { layout in
-                        Text(layout.label).tag(layout)
+            SettingRow(
+                title: "Layout",
+                desc: "Vertical keeps long titles readable, horizontal fits more tabs on screen.",
+                reset: {
+                    viewModel.layout = HudSettingsDefaults.defaults.layout
+                },
+                selector: {
+                    Picker("", selection: $viewModel.layout) { ForEach(HudLayoutMode.allCases) { layout in
+                            Text(layout.label).tag(layout)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .controlSize(.regular)
                 }
-                .pickerStyle(.segmented)
-                .controlSize(.regular)
-            }
+            )
 
-            SettingRow(title: "Theme", subtitle: "Customize how the UI looks") {
-                Picker("", selection: $viewModel.theme) {
-                    ForEach(HudThemeMode.allCases) { theme in
-                        Text(theme.label).tag(theme)
+            SettingRow(
+                title: "Theme",
+                desc: "Customize the color scheme of the UI",
+                reset: {
+                    viewModel.theme = HudSettingsDefaults.defaults.theme
+                },
+                selector: {
+                    Picker("", selection: $viewModel.theme) {
+                        ForEach(HudThemeMode.allCases) { theme in
+                            Text(theme.label).tag(theme)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .controlSize(.regular)
                 }
-                .pickerStyle(.segmented)
-                .controlSize(.regular)
-            }
+            )
             
             separator
             
-            Text("Shortcuts")
-                .font(.title3.bold())
-                .padding(.top, 4)
+            sectionTitle(title: "Shortcuts", desc: "Customize SwiftTab shortcuts")
             
-            SettingRow(title: "Tab switcher", subtitle: "Hold the modifiers to keep the UI visible, release to confirm the highlighted tab.") {
-                ShortcutRecorderField(
-                    shortcut: $viewModel.switchShortcut,
-                    activeRecorderID: $activeRecorderID,
-                    defaultShortcut: HudSettingsDefaults.defaultSwitchShortcut
-                )
-            }
+            SettingRow(
+                title: "Tab switcher",
+                desc: "Hold the modifiers to keep the UI visible, release to confirm the highlighted tab.",
+                reset: {
+                    viewModel.switchShortcut = HudSettingsDefaults.defaultSwitchShortcut
+                    activeRecorderID = nil
+                },
+                selector: {
+                    ShortcutRecorderField(
+                        shortcut: $viewModel.switchShortcut,
+                        activeRecorderID: $activeRecorderID,
+                    )
+                }
+            )
+            .padding(.top, 8)
             .padding(.bottom, 24)
             
-            SettingRow(title: "Search tabs", subtitle: "Opens the searchable UI immediately.") {
-                ShortcutRecorderField(
-                    shortcut: $viewModel.searchShortcut,
-                    activeRecorderID: $activeRecorderID,
-                    defaultShortcut: HudSettingsDefaults.defaultSearchShortcut
-                )
-            }
+            SettingRow(
+                title: "Search tabs",
+                desc: "Opens the searchable UI immediately.",
+                reset: {
+                    viewModel.searchShortcut = HudSettingsDefaults.defaultSearchShortcut
+                    activeRecorderID = nil
+                },
+                selector: {
+                    ShortcutRecorderField(
+                        shortcut: $viewModel.searchShortcut,
+                        activeRecorderID: $activeRecorderID,
+                    )
+                }
+            )
             .padding(.bottom, 8)
 
             if showWarning {
@@ -231,22 +255,90 @@ private struct HudSettingsCard: View {
             if showAdvanced {
                 VStack(alignment: .leading, spacing: 18) {
                     
-                    SettingRow(title: "Return to last used tab", subtitle: "When you close the active tab, focus the most recently used tab automatically.") {
-                        Toggle(isOn: $viewModel.goToLastTabOnClose) {}
-                            .toggleStyle(.switch)
-                    }
-                    
-                    SettingRow(title: "UI Delay", subtitle: "Delay before the UI shows after holding modifier key during tab switching.") {
-                        HStack(spacing: 5) {
-                            Text("\(Int(viewModel.hudDelay)) ms")
-                                .font(.footnote.monospacedDigit())
-                                .frame(width: 70, alignment: .trailing)
-                                .foregroundStyle(.secondary)
-                            Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
-                                .frame(maxWidth: 300)
+                    SettingRow(
+                        title: "Return to last used tab",
+                        desc: "When you close the active tab, focus the most recently used tab automatically.",
+                        reset: {
+                            viewModel.goToLastTabOnClose = HudSettingsDefaults.defaults.goToLastTabOnClose
+                        },
+                        selector: {
+                            Toggle(isOn: $viewModel.goToLastTabOnClose) {}
+                                .toggleStyle(.switch)
+                            
                         }
-                        
-                    }
+                    )
+                    
+                    SettingRow(
+                        title: "UI Delay",
+                        desc: "Delay before the UI shows after holding modifier key during tab switching.",
+                        reset: {
+                            viewModel.hudDelay = Double(HudSettingsDefaults.defaults.hudDelay)
+                        },
+                        selector: {
+                            HStack(spacing: 5) {
+                                Text("\(Int(viewModel.hudDelay)) ms")
+                                    .font(.footnote.monospacedDigit())
+                                    .frame(width: 70, alignment: .trailing)
+                                    .foregroundStyle(.secondary)
+                                Slider(value: $viewModel.hudDelay, in: 0...1000, step: 10)
+                                    .frame(maxWidth: 300)
+                            }
+                            
+                        }
+                    )
+                    
+                    separator
+                    
+                    sectionTitle(title: "Search Priority", desc: "Adjust how much the fuzzy search favors the title, domain, or full URL.")
+
+                    SettingRow(
+                        title: "Title priority",
+                        desc: "Example: \"Inbox – Gmail\". Higher priority favors matches in the page title.",
+                        reset: {
+                            viewModel.searchWeights.title = HudSettingsDefaults.defaults.searchWeights.title
+                        },
+                        selector: {
+                            Picker("", selection: $viewModel.searchWeights.title) {
+                                ForEach(SearchPriority.allCases) { priority in
+                                    Text(priorityLabel(priority)).tag(priority)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 200)
+                        }
+                    )
+                    SettingRow(
+                        title: "Hostname priority",
+                        desc: "Example: \"calendar.google.com\". Higher priority favors matches in the site/domain.",
+                        reset: {
+                            viewModel.searchWeights.hostname = HudSettingsDefaults.defaults.searchWeights.hostname
+                        },
+                        selector: {
+                            Picker("", selection: $viewModel.searchWeights.hostname) {
+                                ForEach(SearchPriority.allCases) { priority in
+                                    Text(priorityLabel(priority)).tag(priority)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 200)
+                        }
+                    )
+                    SettingRow(
+                        title: "URL priority",
+                        desc: "Example: \"/docs/api\". Higher priority favors matches in the full URL path.",
+                        reset: {
+                            viewModel.searchWeights.url = HudSettingsDefaults.defaults.searchWeights.url
+                        },
+                        selector: {
+                            Picker("", selection: $viewModel.searchWeights.url) {
+                                ForEach(SearchPriority.allCases) { priority in
+                                    Text(priorityLabel(priority)).tag(priority)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 200)
+                        }
+                    )
                 }
                 .transition(.opacity)
             }
@@ -275,7 +367,20 @@ private struct HudSettingsCard: View {
         }
     }
     
-    var separator: some View {
+    private func sectionTitle(title: String, desc: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.title3.bold())
+            if let desc = desc {
+                Text(desc)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private var separator: some View {
         Rectangle()
             .foregroundStyle(.quaternary)
             .frame(height: 1)
@@ -313,23 +418,46 @@ private struct HudSettingsCard: View {
         warningTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
     }
+
+    private func priorityLabel(_ priority: SearchPriority) -> String {
+        switch priority {
+        case .off: return "Off"
+        case .low: return "Low"
+        case .medium: return "Med"
+        case .high: return "High"
+        }
+    }
 }
 
 private struct SettingRow<Content: View>: View {
     let title: String
-    let subtitle: String
+    let desc: String
+    let reset: () -> Void
     @ViewBuilder let selector: () -> Content
+    @State private var rotation: Double = 0
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.semibold))
-                Text(subtitle)
+                Text(desc)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             selector()
+            Button {
+                reset()
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    rotation -= 360
+                }
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+                    .rotationEffect(.degrees(rotation))
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -344,7 +472,6 @@ private struct ShortcutRecorderField: View {
     @Binding var activeRecorderID: UUID?
     @State private var recorderID = UUID()
     @State private var eventMonitor: Any?
-    let defaultShortcut: ShortcutSetting
     
     private var isRecording: Bool { activeRecorderID == recorderID }
 
@@ -385,20 +512,6 @@ private struct ShortcutRecorderField: View {
             }
         }
         .buttonStyle(.plain)
-        .overlay(alignment: .trailing) {
-            Button {
-                shortcut = defaultShortcut
-                if isRecording {
-                    activeRecorderID = nil
-                }
-            } label: {
-                Text("Reset")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .offset(y: -32)
-        }
         .overlay(alignment: .center) {
             if isRecording {
                 Text("Recording... Esc to cancel")
@@ -514,6 +627,6 @@ private extension MacOnboardingViewModel.ExtensionState {
 
 #Preview("DashBoardView") {
     DashboardView(viewModel: MacOnboardingViewModel())
-        .frame(minWidth: 1200, minHeight: 1000)
+        .frame(minWidth: 1200, minHeight: 800)
 }
 #endif

@@ -3,19 +3,29 @@ import {
   FALLBACK_FAVICON_DARK_URI,
   FALLBACK_FAVICON_LIGHT_URI,
   normalizeHudSettings,
-  type ContentCommandMessage,
   type HudItem,
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
   type ShortcutSetting,
 } from "./shared/index.js";
+import { computeItemScore } from "./content/searchScoring.js";
+import {
+  resolveSwitchDelta,
+  requiredSwitchModifiersHeld,
+  shortcutMatches,
+  syncModifierState,
+} from "./content/keyboard.js";
+import {
+  applyLayout,
+  applyTheme,
+  resolveTheme,
+  updateColorSchemeListener,
+} from "./content/theme.js";
 
-type SessionMode = "altTab" | "command" | null;
+type SessionMode = "switch" | "search" | null;
 
 (() => {
-  const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
-
   interface ScoredItem {
     item: HudItem;
     score: number;
@@ -47,8 +57,12 @@ type SessionMode = "altTab" | "command" | null;
     colorSchemeQuery: null as MediaQueryList | null,
     mode: null as SessionMode,
     query: "",
-    isFetchingCommand: false,
-    cancelCommandToggle: false,
+    isFetchingSearch: false,
+    cancelSearchToggle: false,
+  };
+
+  const onColorSchemeChange = () => {
+    applyTheme(state.hud, state.settings, state.colorSchemeQuery);
   };
 
   async function exitFullscreenIfNeeded(): Promise<void> {
@@ -77,76 +91,15 @@ type SessionMode = "altTab" | "command" | null;
     });
   }
 
-  function applyLayout(): void {
-    if (!state.hud) return;
-    state.hud.classList.remove("horizontal", "vertical");
-    state.hud.classList.add(state.settings.layout);
-  }
-
-  function resolveTheme(): "dark" | "light" {
-    if (state.settings.theme === "system") {
-      if (state.colorSchemeQuery) {
-        return state.colorSchemeQuery.matches ? "dark" : "light";
-      }
-      if (typeof window.matchMedia === "function") {
-        return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light";
-      }
-      return "dark";
-    }
-    return state.settings.theme;
-  }
-
-  function applyTheme(): void {
-    if (!state.hud) return;
-    const theme = resolveTheme();
-    state.hud.dataset.theme = theme;
-  }
-
-  function attachColorSchemeListener(query: MediaQueryList): void {
-    if (typeof query.addEventListener === "function") {
-      query.addEventListener("change", applyTheme);
-      return;
-    }
-
-    const legacyQuery = query as MediaQueryList & {
-      addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-    };
-    legacyQuery.addListener?.(applyTheme);
-  }
-
-  function detachColorSchemeListener(query: MediaQueryList): void {
-    if (typeof query.removeEventListener === "function") {
-      query.removeEventListener("change", applyTheme);
-      return;
-    }
-
-    const legacyQuery = query as MediaQueryList & {
-      removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-    };
-    legacyQuery.removeListener?.(applyTheme);
-  }
-
-  function updateColorSchemeListener(): void {
-    if (state.settings.theme === "system") {
-      if (!state.colorSchemeQuery && typeof window.matchMedia === "function") {
-        const query = window.matchMedia(COLOR_SCHEME_QUERY);
-        attachColorSchemeListener(query);
-        state.colorSchemeQuery = query;
-      }
-      return;
-    }
-
-    if (state.colorSchemeQuery) {
-      detachColorSchemeListener(state.colorSchemeQuery);
-      state.colorSchemeQuery = null;
-    }
-  }
-
   function applySettings(settings: HudSettings): void {
     state.settings = { ...settings };
-    updateColorSchemeListener();
-    applyLayout();
-    applyTheme();
+    state.colorSchemeQuery = updateColorSchemeListener(
+      state.settings,
+      state.colorSchemeQuery,
+      onColorSchemeChange
+    );
+    applyLayout(state.hud, state.settings.layout);
+    applyTheme(state.hud, state.settings, state.colorSchemeQuery);
     if (!state.settings.enabled && state.visible) {
       hide();
     }
@@ -155,96 +108,12 @@ type SessionMode = "altTab" | "command" | null;
     }
   }
 
-  function normalizeShortcutKey(value: string | null | undefined): string {
-    if (!value) return "";
-    if (value === " ") return "space";
-    if (value === "\u00a0") return "space";
-
-    const rawLower = value.toLowerCase();
-    if (rawLower === "spacebar" || rawLower === "space") return "space";
-    if (value === "\t" || rawLower === "tab") return "tab";
-
-    const trimmed = value.trim().toLowerCase();
-    if (!trimmed) return "";
-    if (trimmed === "spacebar" || trimmed === "space") return "space";
-    if (trimmed === "\t" || trimmed === "tab") return "tab";
-    return trimmed;
-  }
-
-  function normalizeCodeKey(code: string | null | undefined): string {
-    if (!code) return "";
-    const lower = code.toLowerCase();
-    if (lower === "space") return "space";
-    if (lower === "tab") return "tab";
-    if (lower.startsWith("key") && code.length === 4) {
-      return code.slice(3).toLowerCase(); // KeyA -> a
-    }
-    if (lower.startsWith("digit") && code.length === 6) {
-      return code.slice(5); // Digit1 -> 1
-    }
-    return "";
-  }
-
-  function normalizeEventKey(event: KeyboardEvent): string {
-    const fromCode = normalizeCodeKey(event.code);
-    if (fromCode) return fromCode;
-    const normalizedKey = normalizeShortcutKey(event.key);
-    if (normalizedKey) return normalizedKey;
-    if (event.keyCode === 32 || event.which === 32) return "space";
-    if (event.keyCode === 9 || event.which === 9) return "tab";
-    return "";
-  }
-
-  function syncModifierState(event: KeyboardEvent): void {
-    state.modifiers.alt = event.altKey;
-    state.modifiers.ctrl = event.ctrlKey;
-    state.modifiers.meta = event.metaKey;
-    state.modifiers.shift = event.shiftKey;
-  }
-
-  function requiredSwitchModifiersHeld(): boolean {
-    const shortcut = state.settings.switchShortcut;
-    if (shortcut.alt && !state.modifiers.alt) return false;
-    if (shortcut.ctrl && !state.modifiers.ctrl) return false;
-    if (shortcut.meta && !state.modifiers.meta) return false;
-    if (shortcut.shift && !state.modifiers.shift) return false;
-    return true;
-  }
-
-  function shortcutMatches(
-    event: KeyboardEvent,
-    shortcut: ShortcutSetting,
-    options?: { allowExtraShift?: boolean }
-  ): boolean {
-    const targetKey = normalizeShortcutKey(shortcut.key);
-    if (!targetKey) return false;
-    const eventKey = normalizeEventKey(event);
-    if (eventKey !== targetKey) return false;
-    if (!!shortcut.alt !== !!event.altKey) return false;
-    if (!!shortcut.ctrl !== !!event.ctrlKey) return false;
-    if (!!shortcut.meta !== !!event.metaKey) return false;
-    if (shortcut.shift) {
-      if (!event.shiftKey) return false;
-    } else if (!options?.allowExtraShift && event.shiftKey) {
-      return false;
-    }
-    return true;
-  }
-
-  function resolveSwitchDelta(event: KeyboardEvent): number {
-    const requiresShift = state.settings.switchShortcut.shift;
-    if (event.shiftKey && !requiresShift) {
-      return -1;
-    }
-    return 1;
-  }
-
   async function handleSwitchShortcut(event: KeyboardEvent): Promise<void> {
     event.preventDefault();
     event.stopImmediatePropagation?.();
     event.stopPropagation();
 
-    const delta = resolveSwitchDelta(event);
+    const delta = resolveSwitchDelta(event, state.settings);
 
     if (!state.sessionActive) {
       state.pendingMoves += delta;
@@ -264,11 +133,15 @@ type SessionMode = "altTab" | "command" | null;
       state.items = fetched;
       state.index = 0;
       state.sessionActive = true;
-      state.mode = "altTab";
+      state.mode = "switch";
 
       cancelHudTimer();
       state.hudTimer = setTimeout(() => {
-        if (requiredSwitchModifiersHeld() && state.sessionActive && !state.visible) {
+        if (
+          requiredSwitchModifiersHeld(state.modifiers, state.settings) &&
+          state.sessionActive &&
+          !state.visible
+        ) {
           render();
           show();
         }
@@ -314,17 +187,17 @@ type SessionMode = "altTab" | "command" | null;
     state.search = searchInput;
     state.list = listElement;
 
-    applyLayout();
-    applyTheme();
+    applyLayout(state.hud, state.settings.layout);
+    applyTheme(state.hud, state.settings, state.colorSchemeQuery);
 
     searchInput.addEventListener("input", () => {
-      if (state.mode !== "command") return;
+      if (state.mode !== "search") return;
       state.query = searchInput.value;
       updateFilter();
     });
 
     searchInput.addEventListener("keydown", (event) => {
-      if (state.mode !== "command" || !state.visible) return;
+      if (state.mode !== "search" || !state.visible) return;
 
       if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
@@ -363,19 +236,19 @@ type SessionMode = "altTab" | "command" | null;
   }
 
   function getFaviconFallback(): string {
-    const theme = resolveTheme();
+    const theme = resolveTheme(state.settings, state.colorSchemeQuery);
     return theme === "dark" ? FALLBACK_FAVICON_DARK_URI : FALLBACK_FAVICON_LIGHT_URI;
   }
 
   function getRenderItems(): HudItem[] {
-    if (state.mode === "command") {
+    if (state.mode === "search") {
       return state.filteredItems;
     }
     return state.items;
   }
 
-  function refreshCommandSelection(): void {
-    if (state.mode !== "command" || !state.list) return;
+  function refreshSearchSelection(): void {
+    if (state.mode !== "search" || !state.list) return;
     const children = Array.from(state.list.children);
     children.forEach((node, index) => {
       if (!(node instanceof HTMLElement)) return;
@@ -387,8 +260,8 @@ type SessionMode = "altTab" | "command" | null;
     });
   }
 
-  function scrollCommandSelectionIntoView(): void {
-    if (state.mode !== "command" || !state.list) return;
+  function scrollSearchSelectionIntoView(): void {
+    if (state.mode !== "search" || !state.list) return;
     if (state.filterIndex < 0 || state.filterIndex >= state.list.children.length) return;
     const selected = state.list.children.item(state.filterIndex);
     if (selected instanceof HTMLElement) {
@@ -403,10 +276,10 @@ type SessionMode = "altTab" | "command" | null;
     const renderItems = getRenderItems();
     state.list.innerHTML = "";
 
-    const commandMode = state.mode === "command";
-    state.hud.classList.toggle("with-search", commandMode);
+    const searchMode = state.mode === "search";
+    state.hud.classList.toggle("with-search", searchMode);
 
-    if (commandMode && renderItems.length === 0) {
+    if (searchMode && renderItems.length === 0) {
       const emptyItem = document.createElement("li");
       emptyItem.className = "empty";
       emptyItem.textContent =
@@ -417,7 +290,7 @@ type SessionMode = "altTab" | "command" | null;
 
     renderItems.forEach((tab, index) => {
       const li = document.createElement("li");
-      const isSelected = commandMode ? index === state.filterIndex : index === state.index;
+      const isSelected = searchMode ? index === state.filterIndex : index === state.index;
       if (isSelected) li.classList.add("selected");
 
       const img = document.createElement("img");
@@ -434,7 +307,7 @@ type SessionMode = "altTab" | "command" | null;
       titleSpan.textContent = tab.title;
       text.appendChild(titleSpan);
 
-      if (commandMode) {
+      if (searchMode) {
         const metaValue = tab.hostname ?? tab.url;
         if (metaValue) {
           const metaSpan = document.createElement("span");
@@ -447,18 +320,18 @@ type SessionMode = "altTab" | "command" | null;
       li.appendChild(img);
       li.appendChild(text);
 
-      if (commandMode) {
+      if (searchMode) {
         li.addEventListener("mouseenter", () => {
-          if (!state.visible || state.mode !== "command") return;
+          if (!state.visible || state.mode !== "search") return;
           state.filterIndex = index;
-          refreshCommandSelection();
+          refreshSearchSelection();
         });
 
         li.addEventListener("click", (event) => {
           event.preventDefault();
-          if (!state.visible || state.mode !== "command") return;
+          if (!state.visible || state.mode !== "search") return;
           state.filterIndex = index;
-          refreshCommandSelection();
+          refreshSearchSelection();
           void finalizeSelection();
         });
       }
@@ -466,9 +339,9 @@ type SessionMode = "altTab" | "command" | null;
       state.list!.appendChild(li);
     });
 
-    if (commandMode) {
+    if (searchMode) {
       requestAnimationFrame(() => {
-        scrollCommandSelectionIntoView();
+        scrollSearchSelectionIntoView();
       });
     }
   }
@@ -478,18 +351,18 @@ type SessionMode = "altTab" | "command" | null;
     if (!state.hud) return;
     state.hud.style.display = "block";
     state.visible = true;
-    state.hud.classList.toggle("with-search", state.mode === "command");
+    state.hud.classList.toggle("with-search", state.mode === "search");
 
-    if (state.mode === "command") {
+    if (state.mode === "search") {
       requestAnimationFrame(() => {
         state.search?.focus();
         state.search?.select();
-        scrollCommandSelectionIntoView();
+        scrollSearchSelectionIntoView();
       });
     }
   }
 
-  function resetCommandUi(): void {
+  function resetSearchUi(): void {
     state.query = "";
     state.filteredItems = [];
     state.filterIndex = -1;
@@ -504,12 +377,12 @@ type SessionMode = "altTab" | "command" | null;
     state.hud.style.display = "none";
     state.visible = false;
     state.hud.classList.remove("with-search");
-    resetCommandUi();
+    resetSearchUi();
     state.mode = null;
     state.sessionActive = false;
     state.pendingMoves = 0;
     state.cycled = false;
-    state.cancelCommandToggle = false;
+    state.cancelSearchToggle = false;
   }
 
   function requestItems(): Promise<HudItem[]> {
@@ -529,12 +402,12 @@ type SessionMode = "altTab" | "command" | null;
   }
 
   function moveSelection(delta: number): void {
-    if (state.mode === "command") {
+    if (state.mode === "search") {
       if (state.filteredItems.length === 0) return;
       const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta);
       state.filterIndex = next;
-      refreshCommandSelection();
-      scrollCommandSelectionIntoView();
+      refreshSearchSelection();
+      scrollSearchSelectionIntoView();
       return;
     }
 
@@ -543,72 +416,8 @@ type SessionMode = "altTab" | "command" | null;
     if (state.visible) render();
   }
 
-  function computeTermScore(term: string, text: string): number {
-    if (!term || !text) return 0;
-
-    const contiguousIndex = text.indexOf(term);
-    if (contiguousIndex !== -1) {
-      let score = term.length * 120;
-      score += Math.max(0, 600 - contiguousIndex * 40);
-      if (contiguousIndex === 0) score += 160;
-      return score;
-    }
-
-    let total = 0;
-    let matched = 0;
-    let consecutive = 0;
-    let firstMatch = -1;
-
-    for (let i = 0; i < text.length && matched < term.length; i += 1) {
-      if (text[i] === term[matched]) {
-        if (firstMatch === -1) firstMatch = i;
-        consecutive += 1;
-        matched += 1;
-        total += 40 + consecutive * 12;
-      } else {
-        consecutive = 0;
-      }
-    }
-
-    if (matched !== term.length) return 0;
-    const proximity = firstMatch === -1 ? 0 : Math.max(0, 200 - firstMatch * 10);
-    return total + proximity;
-  }
-
-  function computeItemScore(item: HudItem, terms: string[], order: number): number {
-    const title = item.title?.toLowerCase() ?? "";
-    const hostname = item.hostname?.toLowerCase() ?? "";
-    const url = item.url?.toLowerCase() ?? "";
-
-    const sources = [
-      { text: title, weight: 3 },
-      { text: hostname, weight: 2 },
-      { text: url, weight: 1 },
-    ];
-
-    let total = 0;
-    for (const term of terms) {
-      let best = 0;
-      for (const { text, weight } of sources) {
-        if (!text) continue;
-        const score = computeTermScore(term, text);
-        if (score > best) {
-          best = score * weight;
-        }
-      }
-      if (best === 0) {
-        return 0;
-      }
-      total += best;
-    }
-
-    if (item.pinned) total += 150;
-    total += Math.max(0, 200 - order * 4);
-    return total;
-  }
-
   function updateFilter(): void {
-    if (state.mode !== "command") return;
+    if (state.mode !== "search") return;
 
     const normalized = state.query.trim().toLowerCase();
     if (!normalized) {
@@ -629,7 +438,7 @@ type SessionMode = "altTab" | "command" | null;
     const scored: ScoredItem[] = state.items.map((item, index) => ({
       item,
       order: index,
-      score: computeItemScore(item, terms, index),
+      score: computeItemScore(item, terms, index, state.settings.searchWeights),
     }));
 
     const matches = scored.filter((entry) => entry.score > 0);
@@ -645,22 +454,22 @@ type SessionMode = "altTab" | "command" | null;
     render();
   }
 
-  async function startCommandSession(): Promise<void> {
-    if (!state.settings.enabled || state.isFetchingCommand) return;
-    state.isFetchingCommand = true;
+  async function startSearchSession(): Promise<void> {
+    if (!state.settings.enabled || state.isFetchingSearch) return;
+    state.isFetchingSearch = true;
 
     cancelHudTimer();
     state.sessionActive = false;
     state.pendingMoves = 0;
     state.cycled = false;
-    state.mode = "command";
+    state.mode = "search";
 
     try {
       const items = await requestItems();
       state.items = items;
 
-      if (state.cancelCommandToggle) {
-        state.cancelCommandToggle = false;
+      if (state.cancelSearchToggle) {
+        state.cancelSearchToggle = false;
         state.mode = null;
         hide();
         return;
@@ -682,13 +491,13 @@ type SessionMode = "altTab" | "command" | null;
         hide();
       }
     } finally {
-      state.isFetchingCommand = false;
+      state.isFetchingSearch = false;
     }
   }
 
   async function finalizeSelection(): Promise<void> {
     let selected: HudItem | undefined;
-    if (state.mode === "command") {
+    if (state.mode === "search") {
       selected = state.filteredItems[state.filterIndex];
     } else {
       selected = state.items[state.index];
@@ -705,7 +514,7 @@ type SessionMode = "altTab" | "command" | null;
     chrome.runtime.sendMessage({
       type: "mru-finalize",
       tabId: selected.id,
-      index: fallbackIndex >= 0 ? fallbackIndex : state.mode === "command" ? 0 : state.index,
+      index: fallbackIndex >= 0 ? fallbackIndex : state.mode === "search" ? 0 : state.index,
     } satisfies HudMessage);
 
     hide();
@@ -718,16 +527,16 @@ type SessionMode = "altTab" | "command" | null;
   }
 
   function toggleSearchHud(): void {
-    if (state.mode === "command") {
-      if (state.isFetchingCommand) {
-        state.cancelCommandToggle = true;
+    if (state.mode === "search") {
+      if (state.isFetchingSearch) {
+        state.cancelSearchToggle = true;
         return;
       }
       hide();
       return;
     }
-    state.cancelCommandToggle = false;
-    void startCommandSession();
+    state.cancelSearchToggle = false;
+    void startSearchSession();
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -775,8 +584,14 @@ type SessionMode = "altTab" | "command" | null;
         state.settings
       ).searchShortcut;
     }
+    if (Object.prototype.hasOwnProperty.call(changes, "searchWeights")) {
+      nextSettings.searchWeights = normalizeHudSettings(
+        { searchWeights: changes.searchWeights?.newValue },
+        state.settings
+      ).searchWeights;
+    }
     applySettings(normalizeHudSettings(nextSettings, state.settings));
-    if (state.mode === "command") {
+    if (state.mode === "search") {
       updateFilter();
     }
   });
@@ -784,7 +599,7 @@ type SessionMode = "altTab" | "command" | null;
   window.addEventListener(
     "keydown",
     async (event: KeyboardEvent) => {
-      syncModifierState(event);
+      syncModifierState(event, state.modifiers);
       if (!state.settings.enabled) {
         return;
       }
@@ -801,7 +616,7 @@ type SessionMode = "altTab" | "command" | null;
         return;
       }
 
-      if (state.mode === "command" && state.visible) {
+      if (state.mode === "search" && state.visible) {
         const searchFocused = state.search !== null && event.target === state.search;
         const keyLower = event.key.toLowerCase();
         const isCtrlJ = event.ctrlKey && keyLower === "j";
@@ -853,11 +668,11 @@ type SessionMode = "altTab" | "command" | null;
   window.addEventListener(
     "keyup",
     (event: KeyboardEvent) => {
-      syncModifierState(event);
+      syncModifierState(event, state.modifiers);
       if (!state.settings.enabled) {
         return;
       }
-      if (state.mode === "command" && state.visible) {
+      if (state.mode === "search" && state.visible) {
         if (event.key === "Escape") {
           event.preventDefault();
           hide();
@@ -865,34 +680,24 @@ type SessionMode = "altTab" | "command" | null;
         return;
       }
 
-      if (!requiredSwitchModifiersHeld()) {
+      if (!requiredSwitchModifiersHeld(state.modifiers, state.settings)) {
         cancelHudTimer();
-        if (state.cycled && state.mode === "altTab" && state.sessionActive) {
+        if (state.cycled && state.mode === "switch" && state.sessionActive) {
           void finalizeSelection();
-        } else if (state.mode === "altTab" && state.visible) {
+        } else if (state.mode === "switch" && state.visible) {
           hide();
         }
         state.sessionActive = false;
         state.pendingMoves = 0;
         state.initializing = false;
         state.cycled = false;
-        if (state.mode === "altTab") {
+        if (state.mode === "switch") {
           state.mode = null;
         }
       }
     },
     true
   );
-
-  chrome.runtime.onMessage.addListener((message: HudMessage | ContentCommandMessage) => {
-    if (!message || typeof message !== "object") return;
-    if (!state.settings.enabled) {
-      return;
-    }
-    if (message.type === "hud-toggle-search") {
-      toggleSearchHud();
-    }
-  });
 
   void readSettings().then(applySettings);
 })();
