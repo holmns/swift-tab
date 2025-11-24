@@ -26,6 +26,15 @@ final class HudSettingsStore {
         defaults.set(normalized.storageValue, forKey: key)
     }
 
+    private func readSearchWeights(forKey key: String, fallback: SearchWeights) -> SearchWeights {
+        let stored = defaults.object(forKey: key)
+        return SearchWeights.fromStorage(stored, fallback: fallback)
+    }
+
+    private func persistSearchWeights(_ weights: SearchWeights, forKey key: String, fallback: SearchWeights) {
+        defaults.set(weights.storageValue, forKey: key)
+    }
+
     func load() -> HudSettingsState {
         let enabled = defaults.object(forKey: HudSettingsDefaults.enabledKey) as? Bool
             ?? HudSettingsDefaults.defaults.enabled
@@ -45,6 +54,10 @@ final class HudSettingsStore {
             forKey: HudSettingsDefaults.searchShortcutKey,
             fallback: HudSettingsDefaults.defaultSearchShortcut
         )
+        let searchWeights = readSearchWeights(
+            forKey: HudSettingsDefaults.searchWeightsKey,
+            fallback: HudSettingsDefaults.defaultSearchWeights
+        )
 
         return HudSettingsState(
             enabled: enabled,
@@ -53,7 +66,8 @@ final class HudSettingsStore {
             theme: theme,
             goToLastTabOnClose: goToLastTabOnClose,
             switchShortcut: switchShortcut,
-            searchShortcut: searchShortcut
+            searchShortcut: searchShortcut,
+            searchWeights: searchWeights
         )
     }
 
@@ -74,6 +88,11 @@ final class HudSettingsStore {
             settings.searchShortcut,
             forKey: HudSettingsDefaults.searchShortcutKey,
             fallback: HudSettingsDefaults.defaultSearchShortcut
+        )
+        persistSearchWeights(
+            settings.searchWeights,
+            forKey: HudSettingsDefaults.searchWeightsKey,
+            fallback: HudSettingsDefaults.defaultSearchWeights
         )
         defaults.set(Date().timeIntervalSince1970, forKey: HudSettingsDefaults.storageUpdatedAtKey)
         defaults.synchronize()

@@ -25,6 +25,7 @@ private enum NativeSettingsKeys {
     static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
     static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
     static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
+    static let searchWeightsKey = "swifttab.hudSettings.searchWeights"
     static let updatedKey = "swifttab.hudSettings.updatedAt"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
 }
@@ -32,6 +33,7 @@ private enum NativeSettingsKeys {
 private enum NativeDefaults {
     static let switchShortcut = NativeShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
     static let searchShortcut = NativeShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
+    static let searchWeights = NativeSearchWeights(title: 3, hostname: 5, url: 1)
 }
 
 private struct NativeShortcutSetting: Equatable {
@@ -88,6 +90,36 @@ private struct NativeShortcutSetting: Equatable {
     }
 }
 
+private struct NativeSearchWeights: Equatable {
+    var title: Int
+    var hostname: Int
+    var url: Int
+
+    func clamped(min: Int = 0, max: Int = 10) -> NativeSearchWeights {
+        NativeSearchWeights(
+            title: Swift.max(min, Swift.min(max, title)),
+            hostname: Swift.max(min, Swift.min(max, hostname)),
+            url: Swift.max(min, Swift.min(max, url))
+        )
+    }
+
+    var dictionary: [String: Any] {
+        [
+            "title": title,
+            "hostname": hostname,
+            "url": url
+        ]
+    }
+
+    static func parse(_ raw: Any?, fallback: NativeSearchWeights) -> NativeSearchWeights {
+        guard let dict = raw as? [String: Any] else { return fallback }
+        let title = dict["title"] as? Int ?? fallback.title
+        let hostname = dict["hostname"] as? Int ?? fallback.hostname
+        let url = dict["url"] as? Int ?? fallback.url
+        return NativeSearchWeights(title: title, hostname: hostname, url: url).clamped()
+    }
+}
+
 private struct NativeHudSettings {
     var enabled: Bool
     var hudDelay: Int
@@ -96,6 +128,7 @@ private struct NativeHudSettings {
     var goToLastTabOnClose: Bool
     var switchShortcut: NativeShortcutSetting
     var searchShortcut: NativeShortcutSetting
+    var searchWeights: NativeSearchWeights
 }
 
 private final class NativeSettingsStore {
@@ -125,6 +158,10 @@ private final class NativeSettingsStore {
             defaults.object(forKey: NativeSettingsKeys.searchShortcutKey),
             fallback: NativeDefaults.searchShortcut
         )
+        let searchWeights = NativeSearchWeights.parse(
+            defaults.object(forKey: NativeSettingsKeys.searchWeightsKey),
+            fallback: NativeDefaults.searchWeights
+        )
 
         return NativeHudSettings(
             enabled: enabled,
@@ -133,7 +170,8 @@ private final class NativeSettingsStore {
             theme: theme,
             goToLastTabOnClose: goToLastTabOnClose,
             switchShortcut: switchShortcut,
-            searchShortcut: searchShortcut
+            searchShortcut: searchShortcut,
+            searchWeights: searchWeights
         )
     }
 
@@ -155,6 +193,10 @@ private final class NativeSettingsStore {
                 fallback: NativeDefaults.searchShortcut
             ).dictionary,
             forKey: NativeSettingsKeys.searchShortcutKey
+        )
+        defaults.set(
+            settings.searchWeights.clamped().dictionary,
+            forKey: NativeSettingsKeys.searchWeightsKey
         )
         defaults.set(Date().timeIntervalSince1970, forKey: NativeSettingsKeys.updatedKey)
         defaults.synchronize()
@@ -238,6 +280,10 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 searchShortcut: NativeShortcutSetting.parse(
                     incoming["searchShortcut"],
                     fallback: current.searchShortcut
+                ),
+                searchWeights: NativeSearchWeights.parse(
+                    incoming["searchWeights"],
+                    fallback: current.searchWeights
                 )
             )
             settingsStore.save(merged)
@@ -269,7 +315,8 @@ private extension SafariWebExtensionHandler {
                 "theme": settings.theme,
                 "goToLastTabOnClose": settings.goToLastTabOnClose,
                 "switchShortcut": settings.switchShortcut.dictionary,
-                "searchShortcut": settings.searchShortcut.dictionary
+                "searchShortcut": settings.searchShortcut.dictionary,
+                "searchWeights": settings.searchWeights.dictionary
             ],
             "updatedAt": settingsStore.updatedAt
         ]

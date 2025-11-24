@@ -18,5 +18,8 @@ module.exports = {
   ignorePatterns: ["dist/", "options-dist/", "node_modules/", "scripts/"],
   rules: {
     "prettier/prettier": "error",
+    "no-empty-function": "off",
+    "@typescript-eslint/no-empty-function": "off",
+    "@typescript-eslint/prefer-for-of": "off",
   },
 };
