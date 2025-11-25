@@ -260,10 +260,13 @@ type SessionMode = "switch" | "search" | null;
     });
   }
 
-  function scrollSearchSelectionIntoView(): void {
-    if (state.mode !== "search" || !state.list) return;
-    if (state.filterIndex < 0 || state.filterIndex >= state.list.children.length) return;
-    const selected = state.list.children.item(state.filterIndex);
+  function scrollSelectionIntoView(): void {
+    if (!state.list) return;
+
+    const index = state.mode === "search" ? state.filterIndex : state.index;
+    if (index < 0 || index >= state.list.children.length) return;
+
+    const selected = state.list.children.item(index);
     if (selected instanceof HTMLElement) {
       selected.scrollIntoView({ block: "nearest" });
     }
@@ -339,9 +342,9 @@ type SessionMode = "switch" | "search" | null;
       state.list!.appendChild(li);
     });
 
-    if (searchMode) {
+    if (searchMode || state.settings.layout === "vertical") {
       requestAnimationFrame(() => {
-        scrollSearchSelectionIntoView();
+        scrollSelectionIntoView();
       });
     }
   }
@@ -357,7 +360,7 @@ type SessionMode = "switch" | "search" | null;
       requestAnimationFrame(() => {
         state.search?.focus();
         state.search?.select();
-        scrollSearchSelectionIntoView();
+        scrollSelectionIntoView();
       });
     }
   }
@@ -407,7 +410,7 @@ type SessionMode = "switch" | "search" | null;
       const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta);
       state.filterIndex = next;
       refreshSearchSelection();
-      scrollSearchSelectionIntoView();
+      scrollSelectionIntoView();
       return;
     }
 
