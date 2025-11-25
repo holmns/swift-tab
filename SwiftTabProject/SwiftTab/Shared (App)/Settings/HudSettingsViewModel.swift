@@ -18,7 +18,7 @@ final class HudSettingsViewModel: ObservableObject {
 
     private let store: HudSettingsStore
 
-    init(store: HudSettingsStore = .shared) {
+    init(store: HudSettingsStore) {
         self.store = store
         let settings = store.load()
         hudDelay = Double(settings.hudDelay)
@@ -32,6 +32,10 @@ final class HudSettingsViewModel: ObservableObject {
 
         bindStore()
         bindPersist()
+    }
+    
+    convenience init() {
+        self.init(store: .shared)
     }
 
     private func bindStore() {

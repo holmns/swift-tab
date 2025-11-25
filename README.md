@@ -5,14 +5,14 @@ SwiftTab brings **Most Recently Used (MRU) tab switching** to Safari, mirroring 
 This repository contains:
 
 - `/extension` – the Safari WebExtension implementation.
-- `/SwiftTabProject/SwiftTab` – the Xcode workspace that wraps, signs, and ships the extension.
+- `/SwiftTabProject/SwiftTab` – the Xcode workspace that wraps, signs, and ships the extension with SwiftTab app.
 
 ## ✨ Features
 
 - 🔁 **MRU ordering** — Cycle through tabs in the order you last viewed them.
 - ⚡️ **Heads-up display** — Minimal overlay shows tab titles and favicons while you switch.
 - 🔍 **Fuzzy search HUD** — Toggle a searchable list of tabs with your own shortcut.
-- 🧭 **Customizable settings** — Tune settings and define both switch/search shortcuts in the macOS app.
+- 🧭 **Customizable settings** — Tune layout, theme, delay, shortcuts, and search priorities in the macOS app.
 - 🛠 **Native packaging** — Delivered as a signed Safari app extension, optimized for performance and battery usage.
 
 ## 🚀 Getting Started
@@ -33,11 +33,19 @@ During development you can iterate on the WebExtension in `/extension`. Rebuildi
 3. `npm run build:options` (or the top-level `npm run build`) updates the options UI bundle.
 4. Re-run the Xcode scheme or reload the extension in Safari to pick up the refreshed artifacts.
 
-The background service worker reads MRU stacks from storage on launch and debounces writes back to `chrome.storage.session` (falling back to `chrome.storage.local`). An `onSuspend` hook flushes pending writes so state remains consistent even when Safari idles the worker.
-
 ## 🛠 Settings
 
-Adjust SwiftTab’s options through Safari Pop-up settings or in the SwiftTab app
+Adjust SwiftTab’s options through Safari Pop-up settings or in the SwiftTab macOS app:
+
+- **Appearance** — Layout (vertical/horizontal) and theme (system/light/dark).
+- **Shortcuts** — Pick separate combos for Switch and Search.
+- **Behavior** — Return to last-used tab on close.
+- **HUD Delay** — Milliseconds to wait before showing the switcher while holding modifiers.
+- **Search priorities** — Set Title/Domain/URL weighting (off/low/medium/high) to bias fuzzy results.
+
+## 🧭 Technical Details
+
+See `docs/architecture.md` for MRU handling, search scoring, keyboard behavior, favicon fallbacks, settings sync paths, build steps, and native messaging specifics.
 
 ## Credit
 

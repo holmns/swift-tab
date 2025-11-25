@@ -62,6 +62,8 @@
   flex-wrap: nowrap;
   align-items: stretch;
   gap: 10px;
+  overflow-y: auto;
+  max-height: 80vh;
 }
 
 #swift-tab-hud.with-search {
@@ -136,6 +138,8 @@
   box-sizing: border-box;
   align-content: center;
   margin: 0;
+  height: 5vh;
+  min-height: 5vh;
 }
 
 #swift-tab-hud.with-search li {
@@ -181,7 +185,7 @@
 #swift-tab-hud .tab-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
 }
 
