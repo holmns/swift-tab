@@ -23,8 +23,9 @@ This document summarizes how the extension and macOS app are wired, including MR
 
 ## Favicon Handling
 
-- Uses the tab’s `favIconUrl` when available.
-- Falls back to DuckDuckGo (`https://icons.duckduckgo.com/ip3/<host>.ico`) when a tab has no favicon, then to bundled light/dark data URIs (`FALLBACK_FAVICON_LIGHT_URI`/`FALLBACK_FAVICON_DARK_URI`) based on theme.
+- Safari Tab object does not provide favIconUrl property
+- Query for tab's favicon in the HTML `<link rel="icon"/>` tag
+- Unopened tab falls back to DuckDuckGo (`https://icons.duckduckgo.com/ip3/<host>.ico`), then to bundled light/dark data URIs (`FALLBACK_FAVICON_LIGHT_URI`/`FALLBACK_FAVICON_DARK_URI`) based on theme.
 - Favicons load with `referrerPolicy="no-referrer"` and `loading="lazy"` in the HUD.
 - Caching (background `faviconStore`):
   - Storage key: `swifttab.faviconCache` in `chrome.storage.local`.

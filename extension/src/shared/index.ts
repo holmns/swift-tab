@@ -224,3 +224,13 @@ export interface HudFinalizeMessage {
 }
 
 export type HudMessage = HudRequestMessage | HudFinalizeMessage;
+
+export const FAVICON_PROBE_MESSAGE = "swift-tab-favicon-request" as const;
+
+export interface FaviconProbeRequest {
+  type: typeof FAVICON_PROBE_MESSAGE;
+}
+
+export interface FaviconProbeResponse {
+  href?: string | null;
+}

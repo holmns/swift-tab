@@ -1,3 +1,5 @@
+import { FAVICON_PROBE_MESSAGE, type FaviconProbeResponse } from "../shared/index.js";
+
 const STORAGE_KEY = "swifttab.faviconCache";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const MAX_HOST_ENTRIES = 256;
@@ -273,9 +275,36 @@ export function createFaviconStore(): FaviconStore {
     return promise;
   }
 
+  async function requestContentFavicon(
+    tab: chrome.tabs.Tab & { id: number }
+  ): Promise<string | null> {
+    const canonicalUrl = tab.url ?? tab.pendingUrl ?? null;
+    if (!canonicalUrl) return null;
+
+    try {
+      const response = (await chrome.tabs.sendMessage(tab.id, {
+        type: FAVICON_PROBE_MESSAGE,
+      })) as FaviconProbeResponse | undefined;
+      const href = response?.href;
+      if (!href || typeof href !== "string") return null;
+
+      await ensureLoaded();
+      const cached = readCache(byUrl, href);
+      if (cached !== undefined) return cached;
+      return fetchAndCacheUrl(href);
+    } catch (error) {
+      const message = (error as { message?: string } | undefined)?.message ?? "";
+      if (!message.includes("Receiving end does not exist")) {
+        console.warn("[SwiftTab] Failed to request favicon from content script", tab.id, error);
+      }
+      return null;
+    }
+  }
+
   async function resolve(tab: chrome.tabs.Tab & { id: number }): Promise<string | null> {
     await ensureLoaded();
 
+    // Safari doesn't support favIconUrl in tabs API
     if (tab.favIconUrl?.startsWith("data:")) {
       return tab.favIconUrl;
     }
@@ -285,6 +314,9 @@ export function createFaviconStore(): FaviconStore {
       if (cachedByUrl !== undefined) return cachedByUrl;
       return fetchAndCacheUrl(tab.favIconUrl);
     }
+
+    const contentIcon = await requestContentFavicon(tab);
+    if (contentIcon !== null) return contentIcon;
 
     const canonicalUrl = tab.url ?? tab.pendingUrl ?? undefined;
     const hostname = extractHostname(canonicalUrl);
