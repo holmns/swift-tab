@@ -65,6 +65,7 @@ jobs:
             -configuration Release \
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             -destination 'generic/platform=macOS' \
+            -allowProvisioningUpdates \
             clean build
 
       - name: Build SwiftTab macOS app (unsigned fallback)
