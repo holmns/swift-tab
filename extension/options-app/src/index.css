@@ -33,6 +33,12 @@
     background-color: transparent;
     width: 400px;
     user-select: none;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  #root {
+    overflow-y: auto;
   }
 
   :root.dark body {
