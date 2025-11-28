@@ -1,5 +1,7 @@
-/* Centered container */
+/* Reset + isolate the HUD so site styles can't bleed through */
 #swift-tab-hud {
+  all: initial;
+  box-sizing: border-box;
   --hud-bg: rgba(22, 22, 26, 0.85);
   --hud-text: #fff;
   --hud-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
@@ -23,18 +25,35 @@
   color: var(--hud-text);
   border-radius: 16px;
   padding: 20px;
-  font:
-    16px/1.6 -apple-system,
+  font-family:
+    -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     Roboto,
     Arial,
-    sans-serif;
+    sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.6 !important;
   box-shadow: var(--hud-shadow);
   z-index: 2147483647;
   backdrop-filter: blur(8px);
   display: none;
   overflow: hidden;
+  isolation: isolate;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#swift-tab-hud *,
+#swift-tab-hud *::before,
+#swift-tab-hud *::after {
+  all: unset;
+  box-sizing: border-box;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit;
+  text-decoration: none;
 }
 
 /* Base list */
@@ -98,6 +117,7 @@
   background: var(--search-bg);
   color: var(--search-text);
   padding: 10px 14px;
+  display: block;
   font: inherit;
   font-size: 15px;
   outline: none;
