@@ -59,7 +59,7 @@ final class HudSettingsViewModel: ObservableObject {
         )
             .receive(on: RunLoop.main)
             .dropFirst()
-            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+            .debounce(for: .milliseconds(1000), scheduler: RunLoop.main)
             .sink { [weak self] primary, shortcuts, weights in
                 let (delay, layout, theme, goToLastTabOnClose) = primary
                 let (switchShortcut, searchShortcut) = shortcuts

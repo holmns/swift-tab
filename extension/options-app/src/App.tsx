@@ -106,8 +106,12 @@ function App() {
   const [hudDelay, setHudDelay] = useState<number>(DEFAULT_SETTINGS.hudDelay);
   const [layout, setLayout] = useState<LayoutMode>(DEFAULT_SETTINGS.layout);
   const [theme, setTheme] = useState<ThemeMode>(DEFAULT_SETTINGS.theme);
-  const [switchShortcut, setSwitchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.switchShortcut);
-  const [searchShortcut, setSearchShortcut] = useState<ShortcutSetting>(DEFAULT_SETTINGS.searchShortcut);
+  const [switchShortcut, setSwitchShortcut] = useState<ShortcutSetting>(
+    DEFAULT_SETTINGS.switchShortcut
+  );
+  const [searchShortcut, setSearchShortcut] = useState<ShortcutSetting>(
+    DEFAULT_SETTINGS.searchShortcut
+  );
   const [searchWeights, setSearchWeights] = useState<SearchWeights>(DEFAULT_SETTINGS.searchWeights);
   const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
   const [isLoading, setIsLoading] = useState(true);
@@ -278,20 +282,6 @@ function App() {
     setEnabled((current) => !current);
   };
 
-  const handleOpenApp = (): void => {
-    void (async () => {
-      const opened = await openNativeApp();
-      if (opened) return;
-      try {
-        if (typeof window !== "undefined") {
-          window.open("https://swifttab.app", "_blank", "noopener,noreferrer");
-        }
-      } catch (error) {
-        console.warn("[SwiftTab] Failed to open website", error);
-      }
-    })();
-  };
-
   return (
     <main className="min-h-screen p-2">
       <div className="mx-auto w-full max-w-sm p-5 text-slate-900 dark:text-white">
@@ -375,7 +365,7 @@ function App() {
           <section className="space-y-2 pt-2">
             <button
               type="button"
-              onClick={handleOpenApp}
+              onClick={() => openNativeApp()}
               className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-900/20 bg-slate-900/10 px-4 py-1 text-sm font-semibold text-slate-900 transition hover:bg-slate-900/20 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
             >
               <span aria-hidden="true" className="text-2xl translate-y-[-5px]">

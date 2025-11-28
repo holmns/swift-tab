@@ -255,6 +255,8 @@ private struct HudSettingsCard: View {
             if showAdvanced {
                 VStack(alignment: .leading, spacing: 18) {
                     
+                    sectionTitle(title: "Behavior", desc: "Adjust settings that affect the tab switcher's behavior.")
+
                     SettingRow(
                         title: "Return to last used tab",
                         desc: "When you close the active tab, focus the most recently used tab automatically.",

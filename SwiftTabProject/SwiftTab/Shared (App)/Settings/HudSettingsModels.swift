@@ -363,7 +363,7 @@ struct ShortcutSetting: Equatable {
     }
 }
 
-struct HudSettingsState {
+struct HudSettingsState: Equatable {
     var enabled: Bool
     var hudDelay: Int
     var layout: HudLayoutMode

@@ -35,7 +35,8 @@ final class HudSettingsStore {
         defaults.set(weights.storageValue, forKey: key)
     }
 
-    func load() -> HudSettingsState {
+    private func loadSnapshot(log: Bool) -> (HudSettingsState, TimeInterval) {
+        let updatedAt = defaults.object(forKey: HudSettingsDefaults.storageUpdatedAtKey) as? TimeInterval ?? 0
         let enabled = defaults.object(forKey: HudSettingsDefaults.enabledKey) as? Bool
             ?? HudSettingsDefaults.defaults.enabled
         let delay = defaults.object(forKey: HudSettingsDefaults.delayKey) as? Int
@@ -59,7 +60,7 @@ final class HudSettingsStore {
             fallback: HudSettingsDefaults.defaultSearchWeights
         )
 
-        return HudSettingsState(
+        let snapshot = HudSettingsState(
             enabled: enabled,
             hudDelay: clampDelay(delay),
             layout: layout,
@@ -69,33 +70,65 @@ final class HudSettingsStore {
             searchShortcut: searchShortcut,
             searchWeights: searchWeights
         )
+
+        if log {
+            if updatedAt > 0 {
+                print("[SwiftTab][Settings] Loaded settings from defaults (updatedAt=\(updatedAt), layout=\(layout.rawValue), theme=\(theme.rawValue))")
+            } else {
+                print("[SwiftTab][Settings] Loaded settings from defaults (no timestamp, layout=\(layout.rawValue), theme=\(theme.rawValue))")
+            }
+        }
+
+        return (snapshot, updatedAt)
+    }
+
+    func load() -> HudSettingsState {
+        let (snapshot, _) = loadSnapshot(log: true)
+        return snapshot
     }
 
     func save(_ settings: HudSettingsState) {
         let validation = validateShortcuts(switchShortcut: settings.switchShortcut, searchShortcut: settings.searchShortcut)
         guard validation.errors.isEmpty else { return }
-        defaults.set(settings.enabled, forKey: HudSettingsDefaults.enabledKey)
-        defaults.set(clampDelay(settings.hudDelay), forKey: HudSettingsDefaults.delayKey)
-        defaults.set(settings.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)
-        defaults.set(settings.theme.rawValue, forKey: HudSettingsDefaults.themeKey)
-        defaults.set(settings.goToLastTabOnClose, forKey: HudSettingsDefaults.goToLastTabOnCloseKey)
+
+        let next = HudSettingsState(
+            enabled: settings.enabled,
+            hudDelay: clampDelay(settings.hudDelay),
+            layout: settings.layout,
+            theme: settings.theme,
+            goToLastTabOnClose: settings.goToLastTabOnClose,
+            switchShortcut: settings.switchShortcut,
+            searchShortcut: settings.searchShortcut,
+            searchWeights: settings.searchWeights
+        )
+
+        let (current, _) = loadSnapshot(log: false)
+        guard current != next else { return }
+
+        defaults.set(next.enabled, forKey: HudSettingsDefaults.enabledKey)
+        defaults.set(next.hudDelay, forKey: HudSettingsDefaults.delayKey)
+        defaults.set(next.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)
+        defaults.set(next.theme.rawValue, forKey: HudSettingsDefaults.themeKey)
+        defaults.set(next.goToLastTabOnClose, forKey: HudSettingsDefaults.goToLastTabOnCloseKey)
         persistShortcut(
-            settings.switchShortcut,
+            next.switchShortcut,
             forKey: HudSettingsDefaults.switchShortcutKey,
             fallback: HudSettingsDefaults.defaultSwitchShortcut
         )
         persistShortcut(
-            settings.searchShortcut,
+            next.searchShortcut,
             forKey: HudSettingsDefaults.searchShortcutKey,
             fallback: HudSettingsDefaults.defaultSearchShortcut
         )
         persistSearchWeights(
-            settings.searchWeights,
+            next.searchWeights,
             forKey: HudSettingsDefaults.searchWeightsKey,
             fallback: HudSettingsDefaults.defaultSearchWeights
         )
-        defaults.set(Date().timeIntervalSince1970, forKey: HudSettingsDefaults.storageUpdatedAtKey)
+        let timestamp = Date().timeIntervalSince1970
+        defaults.set(timestamp, forKey: HudSettingsDefaults.storageUpdatedAtKey)
         defaults.synchronize()
+        print("[SwiftTab][Settings] Saved settings to defaults (updatedAt=\(timestamp), layout=\(next.layout.rawValue), theme=\(next.theme.rawValue), delay=\(next.hudDelay))")
         DistributedNotificationCenter.default().post(name: HudSettingsDefaults.changedNotification, object: nil)
     }
 }
