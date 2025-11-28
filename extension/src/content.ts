@@ -3,10 +3,12 @@ import {
   FALLBACK_FAVICON_DARK_URI,
   FALLBACK_FAVICON_LIGHT_URI,
   normalizeHudSettings,
+  FAVICON_PROBE_MESSAGE,
   type HudItem,
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
+  type FaviconProbeResponse,
   type ShortcutSetting,
 } from "./shared/index.js";
 import { computeItemScore } from "./content/searchScoring.js";
@@ -65,6 +67,31 @@ type SessionMode = "switch" | "search" | null;
     applyTheme(state.hud, state.settings, state.colorSchemeQuery);
   };
 
+  function resolveDocumentFaviconHref(): string | null {
+    const selectors = [
+      'link[rel~="icon"]',
+      'link[rel~="shortcut icon"]',
+      'link[rel~="apple-touch-icon"]',
+      'link[rel~="apple-touch-icon-precomposed"]',
+      'link[rel*="icon" i]',
+    ];
+
+    for (const selector of selectors) {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(selector));
+      for (const link of links) {
+        const href = link.getAttribute("href");
+        if (!href) continue;
+        try {
+          return new URL(href, document.baseURI).href;
+        } catch {
+          // ignore malformed hrefs
+        }
+      }
+    }
+
+    return null;
+  }
+
   async function exitFullscreenIfNeeded(): Promise<void> {
     const doc = document as Document & {
       webkitExitFullscreen?: () => Promise<void> | void;
@@ -90,6 +117,13 @@ type SessionMode = "switch" | "search" | null;
       });
     });
   }
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === FAVICON_PROBE_MESSAGE) {
+      sendResponse({ href: resolveDocumentFaviconHref() } satisfies FaviconProbeResponse);
+    }
+    return undefined;
+  });
 
   function applySettings(settings: HudSettings): void {
     state.settings = { ...settings };
