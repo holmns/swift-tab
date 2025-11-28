@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_SETTINGS,
   normalizeHudSettings,
@@ -113,7 +113,9 @@ function App() {
     DEFAULT_SETTINGS.searchShortcut
   );
   const [searchWeights, setSearchWeights] = useState<SearchWeights>(DEFAULT_SETTINGS.searchWeights);
-  const goToLastTabOnCloseRef = useRef<boolean>(DEFAULT_SETTINGS.goToLastTabOnClose);
+  const [goToLastTabOnClose, setGoToLastTabOnClose] = useState<boolean>(
+    DEFAULT_SETTINGS.goToLastTabOnClose
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const hasModifier = (shortcut: ShortcutSetting): boolean =>
@@ -187,7 +189,7 @@ function App() {
         setTheme(settings.theme);
         setSwitchShortcut(settings.switchShortcut);
         setSearchShortcut(settings.searchShortcut);
-        goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
+        setGoToLastTabOnClose(settings.goToLastTabOnClose);
         setHydrated(true);
       })
       .finally(() => {
@@ -215,7 +217,7 @@ function App() {
       setSwitchShortcut(normalized.switchShortcut);
       setSearchShortcut(normalized.searchShortcut);
       setSearchWeights(normalized.searchWeights);
-      goToLastTabOnCloseRef.current = normalized.goToLastTabOnClose;
+      setGoToLastTabOnClose(normalized.goToLastTabOnClose);
       setHydrated(true);
     });
 
@@ -228,7 +230,7 @@ function App() {
       setSwitchShortcut(settings.switchShortcut);
       setSearchShortcut(settings.searchShortcut);
       setSearchWeights(settings.searchWeights);
-      goToLastTabOnCloseRef.current = settings.goToLastTabOnClose;
+      setGoToLastTabOnClose(settings.goToLastTabOnClose);
     });
 
     return () => {
@@ -254,7 +256,7 @@ function App() {
       switchShortcut,
       searchShortcut,
       searchWeights,
-      goToLastTabOnClose: goToLastTabOnCloseRef.current,
+      goToLastTabOnClose,
     }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to save settings", error);
@@ -267,7 +269,7 @@ function App() {
       switchShortcut,
       searchShortcut,
       searchWeights,
-      goToLastTabOnClose: goToLastTabOnCloseRef.current,
+      goToLastTabOnClose,
     }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to sync settings to app", error);
@@ -275,16 +277,31 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, enabled, hudDelay, layout, theme, switchShortcut, searchShortcut, searchWeights]);
+  }, [
+    hydrated,
+    enabled,
+    hudDelay,
+    layout,
+    theme,
+    switchShortcut,
+    searchShortcut,
+    searchWeights,
+    goToLastTabOnClose,
+  ]);
 
   const toggleEnabled = (): void => {
     if (isLoading) return;
     setEnabled((current) => !current);
   };
 
+  const toggleGoToLastTabOnClose = (): void => {
+    if (isLoading) return;
+    setGoToLastTabOnClose((current) => !current);
+  };
+
   return (
-    <main className="min-h-screen p-2">
-      <div className="mx-auto w-full max-w-sm p-5 text-slate-900 dark:text-white">
+    <main className="min-h-screen overflow-y-auto p-2">
+      <div className="overflow-y-auto mx-auto w-full max-w-sm p-5 text-slate-900 dark:text-white">
         <header className="space-y-1">
           <h1 className="text-3xl font-semibold leading-tight text-slate-900 dark:text-white">
             SwiftTab
@@ -359,6 +376,29 @@ function App() {
             </div>
             <p className="text-xs text-slate-500 dark:text-white/60">
               Follow device tracks macOS appearance automatically.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">On Close</p>
+            <button
+              type="button"
+              onClick={toggleGoToLastTabOnClose}
+              disabled={isLoading}
+              className={`flex w-full items-center justify-between rounded-[30px] border px-4 py-2 text-base font-semibold transition ${
+                goToLastTabOnClose
+                  ? "border-slate-200 bg-white text-slate-900 dark:border-white/30 dark:bg-white/10 dark:text-white"
+                  : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
+              }`}
+            >
+              <span>{goToLastTabOnClose ? "Return to last-used tab" : "Stay on next tab"}</span>
+              <span className="text-sm text-slate-500 dark:text-white/80">
+                {goToLastTabOnClose ? "On" : "Off"}
+              </span>
+            </button>
+            <p className="text-xs text-slate-500 dark:text-white/60">
+              When you close a tab, jump to the last tab you viewed instead of the next one in the
+              strip.
             </p>
           </section>
 
