@@ -183,11 +183,11 @@ type SessionMode = "switch" | "search" | null;
       }, state.settings.hudDelay);
 
       state.cycled = true;
-      moveSelection(state.pendingMoves, event);
+      moveSelection(state.pendingMoves, event.repeat);
       state.pendingMoves = 0;
     } else {
       state.cycled = true;
-      moveSelection(delta, event);
+      moveSelection(delta, event.repeat);
     }
   }
 
@@ -236,21 +236,21 @@ type SessionMode = "switch" | "search" | null;
       if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(1, event);
+        moveSelection(1, event.repeat);
         return;
       }
 
       if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(-1, event);
+        moveSelection(-1, event.repeat);
         return;
       }
 
       if (event.key.toLowerCase() === "tab") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(event.shiftKey ? -1 : 1, event);
+        moveSelection(event.shiftKey ? -1 : 1, event.repeat);
         return;
       }
 
@@ -433,19 +433,19 @@ type SessionMode = "switch" | "search" | null;
     });
   }
 
-  function wrapIndex(size: number, index: number, event: KeyboardEvent): number {
+  function wrapIndex(size: number, index: number, repeat: boolean): number {
     if (size <= 0) return 0;
-    if (event.repeat) {
+    if (repeat) {
       return Math.max(0, Math.min(size - 1, index));
     } else {
       return ((index % size) + size) % size;
     }
   }
 
-  function moveSelection(delta: number, event: KeyboardEvent): void {
+  function moveSelection(delta: number, repeat: boolean): void {
     if (state.mode === "search") {
       if (state.filteredItems.length === 0) return;
-      const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta, event);
+      const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta, repeat);
       state.filterIndex = next;
       refreshSearchSelection();
       scrollSelectionIntoView();
@@ -453,7 +453,7 @@ type SessionMode = "switch" | "search" | null;
     }
 
     if (!state.items.length) return;
-    state.index = wrapIndex(state.items.length, state.index + delta, event);
+    state.index = wrapIndex(state.items.length, state.index + delta, repeat);
     if (state.visible) render();
   }
 
@@ -680,19 +680,19 @@ type SessionMode = "switch" | "search" | null;
             return;
           }
           event.preventDefault();
-          moveSelection(event.shiftKey ? -1 : 1, event);
+          moveSelection(event.shiftKey ? -1 : 1, event.repeat);
           return;
         }
 
         if ((event.key === "ArrowDown" && !searchFocused) || isCtrlJ) {
           event.preventDefault();
-          moveSelection(1, event);
+          moveSelection(1, event.repeat);
           return;
         }
 
         if ((event.key === "ArrowUp" && !searchFocused) || isCtrlK) {
           event.preventDefault();
-          moveSelection(-1, event);
+          moveSelection(-1, event.repeat);
           return;
         }
 
