@@ -183,11 +183,11 @@ type SessionMode = "switch" | "search" | null;
       }, state.settings.hudDelay);
 
       state.cycled = true;
-      moveSelection(state.pendingMoves);
+      moveSelection(state.pendingMoves, event);
       state.pendingMoves = 0;
     } else {
       state.cycled = true;
-      moveSelection(delta);
+      moveSelection(delta, event);
     }
   }
 
@@ -236,21 +236,21 @@ type SessionMode = "switch" | "search" | null;
       if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(1);
+        moveSelection(1, event);
         return;
       }
 
       if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(-1);
+        moveSelection(-1, event);
         return;
       }
 
       if (event.key.toLowerCase() === "tab") {
         event.preventDefault();
         event.stopImmediatePropagation?.();
-        moveSelection(event.shiftKey ? -1 : 1);
+        moveSelection(event.shiftKey ? -1 : 1, event);
         return;
       }
 
@@ -433,15 +433,19 @@ type SessionMode = "switch" | "search" | null;
     });
   }
 
-  function wrapIndex(size: number, index: number): number {
+  function wrapIndex(size: number, index: number, event: KeyboardEvent): number {
     if (size <= 0) return 0;
-    return ((index % size) + size) % size;
+    if (event.repeat) {
+      return Math.max(0, Math.min(size - 1, index));
+    } else {
+      return ((index % size) + size) % size;
+    }
   }
 
-  function moveSelection(delta: number): void {
+  function moveSelection(delta: number, event: KeyboardEvent): void {
     if (state.mode === "search") {
       if (state.filteredItems.length === 0) return;
-      const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta);
+      const next = wrapIndex(state.filteredItems.length, state.filterIndex + delta, event);
       state.filterIndex = next;
       refreshSearchSelection();
       scrollSelectionIntoView();
@@ -449,7 +453,7 @@ type SessionMode = "switch" | "search" | null;
     }
 
     if (!state.items.length) return;
-    state.index = wrapIndex(state.items.length, state.index + delta);
+    state.index = wrapIndex(state.items.length, state.index + delta, event);
     if (state.visible) render();
   }
 
@@ -676,19 +680,19 @@ type SessionMode = "switch" | "search" | null;
             return;
           }
           event.preventDefault();
-          moveSelection(event.shiftKey ? -1 : 1);
+          moveSelection(event.shiftKey ? -1 : 1, event);
           return;
         }
 
         if ((event.key === "ArrowDown" && !searchFocused) || isCtrlJ) {
           event.preventDefault();
-          moveSelection(1);
+          moveSelection(1, event);
           return;
         }
 
         if ((event.key === "ArrowUp" && !searchFocused) || isCtrlK) {
           event.preventDefault();
-          moveSelection(-1);
+          moveSelection(-1, event);
           return;
         }
 
