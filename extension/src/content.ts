@@ -224,6 +224,29 @@ type SessionMode = "switch" | "search" | null;
     applyLayout(state.hud, state.settings.layout);
     applyTheme(state.hud, state.settings, state.colorSchemeQuery);
 
+    const maintainSearchFocus = (): void => {
+      if (!state.visible || state.mode !== "search") return;
+      if (document.activeElement !== searchInput) {
+        searchInput.focus({ preventScroll: true });
+      }
+    };
+
+    const swallowSearchKeyEvent = (event: KeyboardEvent): void => {
+      if (state.mode !== "search" || !state.visible) return;
+      // Prevent the underlying page from reacting to typing (e.g., focusing its own inputs).
+      event.stopPropagation();
+      maintainSearchFocus();
+    };
+
+    searchInput.addEventListener("keydown", swallowSearchKeyEvent);
+    searchInput.addEventListener("keypress", swallowSearchKeyEvent);
+    searchInput.addEventListener("keyup", swallowSearchKeyEvent);
+
+    searchInput.addEventListener("blur", () => {
+      if (!state.visible || state.mode !== "search") return;
+      requestAnimationFrame(maintainSearchFocus);
+    });
+
     searchInput.addEventListener("input", () => {
       if (state.mode !== "search") return;
       state.query = searchInput.value;
