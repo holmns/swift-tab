@@ -363,12 +363,53 @@ struct ShortcutSetting: Equatable {
     }
 }
 
+func normalizeCloseShortcutKey(_ value: String?, fallback: String) -> String {
+    guard let value else { return fallback }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return fallback }
+    let normalized = ShortcutSetting(
+        key: trimmed,
+        alt: false,
+        ctrl: false,
+        meta: false,
+        shift: false
+    ).normalizedKey
+    return normalized.isEmpty ? fallback : normalized
+}
+
+func resolveCloseShortcutKey(
+    _ closeKey: String,
+    switchShortcut: ShortcutSetting,
+    searchShortcut: ShortcutSetting,
+    fallback: String
+) -> String {
+    let normalizedSwitch = switchShortcut.normalizedKey
+    let normalizedSearch = searchShortcut.normalizedKey
+    let candidates = [
+        normalizeCloseShortcutKey(closeKey, fallback: fallback),
+        fallback,
+        HudSettingsDefaults.defaultCloseShortcutKey,
+        "delete",
+        "backspace"
+    ]
+
+    for candidate in candidates {
+        guard !candidate.isEmpty else { continue }
+        let normalized = normalizeCloseShortcutKey(candidate, fallback: fallback)
+        if normalized == normalizedSwitch || normalized == normalizedSearch { continue }
+        return normalized
+    }
+
+    return HudSettingsDefaults.defaultCloseShortcutKey
+}
+
 struct HudSettingsState: Equatable {
     var enabled: Bool
     var hudDelay: Int
     var layout: HudLayoutMode
     var theme: HudThemeMode
     var goToLastTabOnClose: Bool
+    var closeShortcutKey: String
     var switchShortcut: ShortcutSetting
     var searchShortcut: ShortcutSetting
     var searchWeights: SearchWeights
@@ -382,12 +423,14 @@ enum HudSettingsDefaults {
     static let layoutKey = "swifttab.hudSettings.layout"
     static let themeKey = "swifttab.hudSettings.theme"
     static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
+    static let closeShortcutKeyKey = "swifttab.hudSettings.closeShortcutKey"
     static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
     static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
     static let searchWeightsKey = "swifttab.hudSettings.searchWeights"
     static let changedNotification = Notification.Name("com.holmns.swifttab.settingsChanged")
     static let defaultSwitchShortcut = ShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
     static let defaultSearchShortcut = ShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
+    static let defaultCloseShortcutKey = "w"
     static let defaultSearchWeights = SearchWeights.default
 
     static let defaults = HudSettingsState(
@@ -396,6 +439,7 @@ enum HudSettingsDefaults {
         layout: .vertical,
         theme: .system,
         goToLastTabOnClose: true,
+        closeShortcutKey: defaultCloseShortcutKey,
         switchShortcut: defaultSwitchShortcut,
         searchShortcut: defaultSearchShortcut,
         searchWeights: defaultSearchWeights
@@ -442,12 +486,27 @@ private func conflictWarnings(for shortcut: ShortcutSetting, label: String) -> [
     return messages
 }
 
-func validateShortcuts(switchShortcut: ShortcutSetting, searchShortcut: ShortcutSetting) -> ShortcutValidation {
+func validateShortcuts(switchShortcut: ShortcutSetting, closeShortcutKey: String, searchShortcut: ShortcutSetting) -> ShortcutValidation {
     var errors: [String] = []
     var warnings: [String] = []
+    let closeShortcut = ShortcutSetting(
+        key: closeShortcutKey,
+        alt: switchShortcut.alt,
+        ctrl: switchShortcut.ctrl,
+        meta: switchShortcut.meta,
+        shift: switchShortcut.shift
+    )
 
     if switchShortcut == searchShortcut {
         errors.append("Shortcuts must differ. Pick a different combo for search or switch.")
+    }
+    
+    if closeShortcut == switchShortcut {
+        errors.append("Close shortcut cannot be the same as the Tab switcher shortcut.")
+    }
+    
+    if closeShortcut == searchShortcut {
+        errors.append("Close shortcit cannot be the same as the Search shortcut.")
     }
 
     if !hasModifier(switchShortcut) {

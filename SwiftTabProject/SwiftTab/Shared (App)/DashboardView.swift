@@ -142,11 +142,32 @@ private struct EnablementStep: Identifiable {
 private struct HudSettingsCard: View {
     @ObservedObject var viewModel: HudSettingsViewModel
     @State private var showAdvanced = false
+    @State private var showError = false
+    @State private var errorMessages: [String] = []
     @State private var showWarning = false
-    @State private var warningMessage: String = ""
-    @State private var warningLevel: BannerLevel = .warning
-    @State private var warningTask: DispatchWorkItem?
+    @State private var warningMessages: [String] = []
+    @State private var errorTask: DispatchWorkItem?
     @State private var activeRecorderID: UUID?
+
+    private var closeShortcutBinding: Binding<ShortcutSetting> {
+        Binding(
+            get: {
+                ShortcutSetting(
+                    key: viewModel.closeShortcutKey,
+                    alt: viewModel.switchShortcut.alt,
+                    ctrl: viewModel.switchShortcut.ctrl,
+                    meta: viewModel.switchShortcut.meta,
+                    shift: viewModel.switchShortcut.shift
+                )
+            },
+            set: { newValue in
+                viewModel.closeShortcutKey = normalizeCloseShortcutKey(
+                    newValue.key,
+                    fallback: HudSettingsDefaults.defaultCloseShortcutKey
+                )
+            }
+        )
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -208,6 +229,22 @@ private struct HudSettingsCard: View {
             )
             .padding(.top, 8)
             .padding(.bottom, 24)
+
+            SettingRow(
+                title: "Close tab while switching",
+                desc: "Closes the highlighted tab while the switcher is open. Uses the same modifiers as the tab switcher shortcut.",
+                reset: {
+                    viewModel.closeShortcutKey = HudSettingsDefaults.defaultCloseShortcutKey
+                    activeRecorderID = nil
+                },
+                selector: {
+                    ShortcutRecorderField(
+                        shortcut: closeShortcutBinding,
+                        activeRecorderID: $activeRecorderID
+                    )
+                }
+            )
+            .padding(.bottom, 20)
             
             SettingRow(
                 title: "Search tabs",
@@ -224,13 +261,25 @@ private struct HudSettingsCard: View {
                 }
             )
             .padding(.bottom, 8)
-
-            if showWarning {
-                Text(warningMessage)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(warningLevel == .error ? Color.red : Color.yellow)
-                    .padding(.top, 4)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                if showError {
+                    ForEach(errorMessages, id: \.self) { message in
+                        Text(message)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.red)
+                    }
+                }
+                
+                if showWarning {
+                    ForEach(warningMessages, id: \.self) { message in
+                        Text(message)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.yellow)
+                    }
+                }
             }
+            .padding(.top, 4)
             
             separator
             
@@ -361,11 +410,14 @@ private struct HudSettingsCard: View {
         .onChange(of: viewModel.searchShortcut) {
             validateAndShowError()
         }
+        .onChange(of: viewModel.closeShortcutKey) {
+            validateAndShowError()
+        }
         .onAppear {
             validateAndShowError()
         }
         .onDisappear {
-            warningTask?.cancel()
+            errorTask?.cancel()
         }
     }
     
@@ -389,35 +441,45 @@ private struct HudSettingsCard: View {
     }
 
     private func validateAndShowError() {
+        withAnimation(.spring(duration: 0.2)) {
+            showError = false
+            showWarning = false
+        }
+        errorMessages = []
+        warningMessages = []
+        
         let validation = validateShortcuts(
             switchShortcut: viewModel.switchShortcut,
+            closeShortcutKey: viewModel.closeShortcutKey,
             searchShortcut: viewModel.searchShortcut
         )
 
-        if let error = validation.errors.first {
-            showWarningMessage(error, level: .error)
+        if !validation.errors.isEmpty {
+            errorMessages = validation.errors
+            showErrorMessages()
             return
         }
 
-        if let warning = validation.warnings.first {
-            showWarningMessage(warning, level: .warning)
+        if !validation.warnings.isEmpty {
+            warningMessages = validation.warnings
+            withAnimation(.spring(duration: 0.2)) {
+                showWarning = true
+            }
             return
         }
     }
 
-    private func showWarningMessage(_ message: String, level: BannerLevel) {
-        warningTask?.cancel()
-        warningMessage = message
-        warningLevel = level
+    private func showErrorMessages() {
+        errorTask?.cancel()
         withAnimation(.spring(duration: 0.2)) {
-            showWarning = true
+            showError = true
         }
         let task = DispatchWorkItem {
             withAnimation {
-                showWarning = false
+                showError = false
             }
         }
-        warningTask = task
+        errorTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
     }
 
@@ -462,11 +524,6 @@ private struct SettingRow<Content: View>: View {
             .buttonStyle(.plain)
         }
     }
-}
-
-private enum BannerLevel {
-    case warning
-    case error
 }
 
 private struct ShortcutRecorderField: View {
@@ -632,3 +689,4 @@ private extension MacOnboardingViewModel.ExtensionState {
         .frame(minWidth: 1200, minHeight: 800)
 }
 #endif
+

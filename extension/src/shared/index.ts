@@ -28,6 +28,7 @@ export interface HudSettings {
   layout: LayoutMode;
   theme: ThemeMode;
   goToLastTabOnClose: boolean;
+  closeShortcutKey: string;
   switchShortcut: ShortcutSetting;
   searchShortcut: ShortcutSetting;
   searchWeights: SearchWeights;
@@ -58,6 +59,8 @@ export const DEFAULT_SEARCH_SHORTCUT: ShortcutSetting = {
   shift: false,
 };
 
+export const DEFAULT_CLOSE_SHORTCUT_KEY = "w";
+
 export const DEFAULT_SEARCH_WEIGHTS: SearchWeights = {
   title: 3,
   hostname: 5,
@@ -70,6 +73,7 @@ export const DEFAULT_SETTINGS: HudSettings = {
   layout: "vertical",
   theme: "system",
   goToLastTabOnClose: true,
+  closeShortcutKey: DEFAULT_CLOSE_SHORTCUT_KEY,
   switchShortcut: DEFAULT_SWITCH_SHORTCUT,
   searchShortcut: DEFAULT_SEARCH_SHORTCUT,
   searchWeights: DEFAULT_SEARCH_WEIGHTS,
@@ -113,6 +117,10 @@ function parseShortcut(
   const meta = parseBoolean(value?.meta, fallback.meta);
   const shift = parseBoolean(value?.shift, fallback.shift);
   return { key, alt, ctrl, meta, shift };
+}
+
+function parseCloseShortcutKey(value: unknown, fallback: string): string {
+  return normalizeShortcutKey(value) ?? fallback;
 }
 
 export function clampHudDelay(
@@ -168,18 +176,51 @@ export function parseSearchWeights(
   };
 }
 
+function resolveCloseShortcutKey(
+  inputKey: unknown,
+  fallbackKey: string,
+  switchShortcut: ShortcutSetting,
+  searchShortcut: ShortcutSetting
+): string {
+  const normalizedSwitchKey = normalizeShortcutKey(switchShortcut.key);
+  const normalizedSearchKey = normalizeShortcutKey(searchShortcut.key);
+  const preferred = parseCloseShortcutKey(inputKey, fallbackKey);
+  const candidates = [preferred, fallbackKey, DEFAULT_CLOSE_SHORTCUT_KEY, "backspace", "delete"];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const normalized = normalizeShortcutKey(candidate);
+    if (!normalized) continue;
+    if (normalized === normalizedSwitchKey || normalized === normalizedSearchKey) {
+      continue;
+    }
+    return normalized;
+  }
+
+  return DEFAULT_CLOSE_SHORTCUT_KEY;
+}
+
 export function normalizeHudSettings(
   input: Partial<HudSettings> | undefined,
   fallback: HudSettings = DEFAULT_SETTINGS
 ): HudSettings {
+  const switchShortcut = parseShortcut(input?.switchShortcut, fallback.switchShortcut);
+  const searchShortcut = parseShortcut(input?.searchShortcut, fallback.searchShortcut);
+
   return {
     enabled: parseEnabled(input?.enabled, fallback.enabled),
     hudDelay: clampHudDelay(input?.hudDelay, fallback.hudDelay),
     layout: parseLayoutMode(input?.layout, fallback.layout),
     theme: parseThemeMode(input?.theme, fallback.theme),
     goToLastTabOnClose: parseBoolean(input?.goToLastTabOnClose, fallback.goToLastTabOnClose),
-    switchShortcut: parseShortcut(input?.switchShortcut, fallback.switchShortcut),
-    searchShortcut: parseShortcut(input?.searchShortcut, fallback.searchShortcut),
+    switchShortcut,
+    searchShortcut,
+    closeShortcutKey: resolveCloseShortcutKey(
+      input?.closeShortcutKey,
+      fallback.closeShortcutKey ?? DEFAULT_CLOSE_SHORTCUT_KEY,
+      switchShortcut,
+      searchShortcut
+    ),
     searchWeights: parseSearchWeights(input?.searchWeights, fallback.searchWeights),
   };
 }
@@ -223,7 +264,12 @@ export interface HudFinalizeMessage {
   tabId?: TabId;
 }
 
-export type HudMessage = HudRequestMessage | HudFinalizeMessage;
+export interface HudCloseMessage {
+  type: "mru-close";
+  tabId: TabId;
+}
+
+export type HudMessage = HudRequestMessage | HudFinalizeMessage | HudCloseMessage;
 
 export const FAVICON_PROBE_MESSAGE = "swift-tab-favicon-request" as const;
 

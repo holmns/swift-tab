@@ -23,6 +23,7 @@ private enum NativeSettingsKeys {
     static let layoutKey = "swifttab.hudSettings.layout"
     static let themeKey = "swifttab.hudSettings.theme"
     static let goToLastTabOnCloseKey = "swifttab.hudSettings.goToLastTabOnClose"
+    static let closeShortcutKeyKey = "swifttab.hudSettings.closeShortcutKey"
     static let switchShortcutKey = "swifttab.hudSettings.switchShortcut"
     static let searchShortcutKey = "swifttab.hudSettings.searchShortcut"
     static let searchWeightsKey = "swifttab.hudSettings.searchWeights"
@@ -33,6 +34,7 @@ private enum NativeSettingsKeys {
 private enum NativeDefaults {
     static let switchShortcut = NativeShortcutSetting(key: "tab", alt: true, ctrl: false, meta: false, shift: false)
     static let searchShortcut = NativeShortcutSetting(key: "space", alt: true, ctrl: false, meta: false, shift: false)
+    static let closeShortcutKey = "w"
     static let searchWeights = NativeSearchWeights(title: 3, hostname: 5, url: 1)
 }
 
@@ -120,12 +122,46 @@ private struct NativeSearchWeights: Equatable {
     }
 }
 
+private func normalizeShortcutKeyValue(_ raw: Any?, fallback: String) -> String {
+    guard let string = raw as? String else { return fallback }
+    let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty { return fallback }
+    let lower = trimmed.lowercased()
+    if lower == "spacebar" || lower == " " { return "space" }
+    if lower == "\t" || lower == "tab" { return "tab" }
+    return lower
+}
+
+private func resolveCloseShortcutKey(
+    _ closeKey: String,
+    switchShortcut: NativeShortcutSetting,
+    searchShortcut: NativeShortcutSetting,
+    fallback: String
+) -> String {
+    let candidates = [
+        normalizeShortcutKeyValue(closeKey, fallback: fallback),
+        fallback,
+        NativeDefaults.closeShortcutKey,
+        "delete",
+        "backspace"
+    ]
+    for candidate in candidates {
+        let normalized = normalizeShortcutKeyValue(candidate, fallback: fallback)
+        if normalized == switchShortcut.normalizedKey || normalized == searchShortcut.normalizedKey {
+            continue
+        }
+        return normalized
+    }
+    return NativeDefaults.closeShortcutKey
+}
+
 private struct NativeHudSettings {
     var enabled: Bool
     var hudDelay: Int
     var layout: String
     var theme: String
     var goToLastTabOnClose: Bool
+    var closeShortcutKey: String
     var switchShortcut: NativeShortcutSetting
     var searchShortcut: NativeShortcutSetting
     var searchWeights: NativeSearchWeights
@@ -158,6 +194,12 @@ private final class NativeSettingsStore {
             defaults.object(forKey: NativeSettingsKeys.searchShortcutKey),
             fallback: NativeDefaults.searchShortcut
         )
+        let closeShortcutKey = resolveCloseShortcutKey(
+            defaults.string(forKey: NativeSettingsKeys.closeShortcutKeyKey) ?? NativeDefaults.closeShortcutKey,
+            switchShortcut: switchShortcut,
+            searchShortcut: searchShortcut,
+            fallback: NativeDefaults.closeShortcutKey
+        )
         let searchWeights = NativeSearchWeights.parse(
             defaults.object(forKey: NativeSettingsKeys.searchWeightsKey),
             fallback: NativeDefaults.searchWeights
@@ -169,6 +211,7 @@ private final class NativeSettingsStore {
             layout: layout,
             theme: theme,
             goToLastTabOnClose: goToLastTabOnClose,
+            closeShortcutKey: closeShortcutKey,
             switchShortcut: switchShortcut,
             searchShortcut: searchShortcut,
             searchWeights: searchWeights
@@ -177,11 +220,24 @@ private final class NativeSettingsStore {
 
     func save(_ settings: NativeHudSettings) {
         guard settings.switchShortcut != settings.searchShortcut else { return }
+        let resolvedCloseKey = resolveCloseShortcutKey(
+            settings.closeShortcutKey,
+            switchShortcut: settings.switchShortcut,
+            searchShortcut: settings.searchShortcut,
+            fallback: NativeDefaults.closeShortcutKey
+        )
         defaults.set(settings.enabled, forKey: NativeSettingsKeys.enabledKey)
         defaults.set(clampDelay(settings.hudDelay), forKey: NativeSettingsKeys.delayKey)
         defaults.set(settings.layout, forKey: NativeSettingsKeys.layoutKey)
         defaults.set(settings.theme, forKey: NativeSettingsKeys.themeKey)
         defaults.set(settings.goToLastTabOnClose, forKey: NativeSettingsKeys.goToLastTabOnCloseKey)
+        defaults.set(
+            normalizeShortcutKeyValue(
+                resolvedCloseKey,
+                fallback: NativeDefaults.closeShortcutKey
+            ),
+            forKey: NativeSettingsKeys.closeShortcutKeyKey
+        )
         defaults.set(
             settings.switchShortcut.normalized(
                 fallback: NativeDefaults.switchShortcut
@@ -267,20 +323,32 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 }
                 return incoming["hudDelay"] as? Int ?? current.hudDelay
             }()
+            let incomingSwitchShortcut = NativeShortcutSetting.parse(
+                incoming["switchShortcut"],
+                fallback: current.switchShortcut
+            )
+            let incomingSearchShortcut = NativeShortcutSetting.parse(
+                incoming["searchShortcut"],
+                fallback: current.searchShortcut
+            )
+            let resolvedCloseKey = resolveCloseShortcutKey(
+                normalizeShortcutKeyValue(
+                    incoming["closeShortcutKey"],
+                    fallback: current.closeShortcutKey
+                ),
+                switchShortcut: incomingSwitchShortcut,
+                searchShortcut: incomingSearchShortcut,
+                fallback: current.closeShortcutKey
+            )
             let merged = NativeHudSettings(
                 enabled: incoming["enabled"] as? Bool ?? current.enabled,
                 hudDelay: parsedDelay,
                 layout: incoming["layout"] as? String ?? current.layout,
                 theme: incoming["theme"] as? String ?? current.theme,
                 goToLastTabOnClose: incoming["goToLastTabOnClose"] as? Bool ?? current.goToLastTabOnClose,
-                switchShortcut: NativeShortcutSetting.parse(
-                    incoming["switchShortcut"],
-                    fallback: current.switchShortcut
-                ),
-                searchShortcut: NativeShortcutSetting.parse(
-                    incoming["searchShortcut"],
-                    fallback: current.searchShortcut
-                ),
+                closeShortcutKey: resolvedCloseKey,
+                switchShortcut: incomingSwitchShortcut,
+                searchShortcut: incomingSearchShortcut,
                 searchWeights: NativeSearchWeights.parse(
                     incoming["searchWeights"],
                     fallback: current.searchWeights
@@ -314,6 +382,7 @@ private extension SafariWebExtensionHandler {
                 "layout": settings.layout,
                 "theme": settings.theme,
                 "goToLastTabOnClose": settings.goToLastTabOnClose,
+                "closeShortcutKey": settings.closeShortcutKey,
                 "switchShortcut": settings.switchShortcut.dictionary,
                 "searchShortcut": settings.searchShortcut.dictionary,
                 "searchWeights": settings.searchWeights.dictionary

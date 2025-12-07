@@ -31,6 +31,16 @@ final class HudSettingsStore {
         return SearchWeights.fromStorage(stored, fallback: fallback)
     }
 
+    private func readCloseShortcutKey(forKey key: String, fallback: String) -> String {
+        let stored = defaults.string(forKey: key)
+        return normalizeCloseShortcutKey(stored, fallback: fallback)
+    }
+
+    private func persistCloseShortcutKey(_ key: String, forKey storageKey: String, fallback: String) {
+        let normalized = normalizeCloseShortcutKey(key, fallback: fallback)
+        defaults.set(normalized, forKey: storageKey)
+    }
+
     private func persistSearchWeights(_ weights: SearchWeights, forKey key: String, fallback: SearchWeights) {
         defaults.set(weights.storageValue, forKey: key)
     }
@@ -55,6 +65,15 @@ final class HudSettingsStore {
             forKey: HudSettingsDefaults.searchShortcutKey,
             fallback: HudSettingsDefaults.defaultSearchShortcut
         )
+        let closeShortcutKey = resolveCloseShortcutKey(
+            readCloseShortcutKey(
+                forKey: HudSettingsDefaults.closeShortcutKeyKey,
+                fallback: HudSettingsDefaults.defaultCloseShortcutKey
+            ),
+            switchShortcut: switchShortcut,
+            searchShortcut: searchShortcut,
+            fallback: HudSettingsDefaults.defaultCloseShortcutKey
+        )
         let searchWeights = readSearchWeights(
             forKey: HudSettingsDefaults.searchWeightsKey,
             fallback: HudSettingsDefaults.defaultSearchWeights
@@ -66,6 +85,7 @@ final class HudSettingsStore {
             layout: layout,
             theme: theme,
             goToLastTabOnClose: goToLastTabOnClose,
+            closeShortcutKey: closeShortcutKey,
             switchShortcut: switchShortcut,
             searchShortcut: searchShortcut,
             searchWeights: searchWeights
@@ -88,7 +108,7 @@ final class HudSettingsStore {
     }
 
     func save(_ settings: HudSettingsState) {
-        let validation = validateShortcuts(switchShortcut: settings.switchShortcut, searchShortcut: settings.searchShortcut)
+        let validation = validateShortcuts(switchShortcut: settings.switchShortcut, closeShortcutKey: settings.closeShortcutKey, searchShortcut: settings.searchShortcut)
         guard validation.errors.isEmpty else { return }
 
         let next = HudSettingsState(
@@ -97,6 +117,12 @@ final class HudSettingsStore {
             layout: settings.layout,
             theme: settings.theme,
             goToLastTabOnClose: settings.goToLastTabOnClose,
+            closeShortcutKey: resolveCloseShortcutKey(
+                settings.closeShortcutKey,
+                switchShortcut: settings.switchShortcut,
+                searchShortcut: settings.searchShortcut,
+                fallback: HudSettingsDefaults.defaultCloseShortcutKey
+            ),
             switchShortcut: settings.switchShortcut,
             searchShortcut: settings.searchShortcut,
             searchWeights: settings.searchWeights
@@ -110,6 +136,11 @@ final class HudSettingsStore {
         defaults.set(next.layout.rawValue, forKey: HudSettingsDefaults.layoutKey)
         defaults.set(next.theme.rawValue, forKey: HudSettingsDefaults.themeKey)
         defaults.set(next.goToLastTabOnClose, forKey: HudSettingsDefaults.goToLastTabOnCloseKey)
+        persistCloseShortcutKey(
+            next.closeShortcutKey,
+            forKey: HudSettingsDefaults.closeShortcutKeyKey,
+            fallback: HudSettingsDefaults.defaultCloseShortcutKey
+        )
         persistShortcut(
             next.switchShortcut,
             forKey: HudSettingsDefaults.switchShortcutKey,

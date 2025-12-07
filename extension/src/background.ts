@@ -265,6 +265,20 @@ function registerListeners(): void {
       })();
     }
 
+    if (msg?.type === "mru-close") {
+      void (async () => {
+        if (typeof msg.tabId !== "number") return;
+        try {
+          await chrome.tabs.remove(msg.tabId);
+        } catch (error) {
+          const message = (error as { message?: string } | undefined)?.message ?? "";
+          if (!message.includes("No tab with id")) {
+            console.warn("[SwiftTab] Failed to close tab", msg.tabId, error);
+          }
+        }
+      })();
+    }
+
     return false;
   });
 }
@@ -284,6 +298,7 @@ function registerSettingsSync(): void {
     "layout",
     "theme",
     "goToLastTabOnClose",
+    "closeShortcutKey",
     "switchShortcut",
     "searchShortcut",
     "searchWeights",

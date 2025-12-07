@@ -116,6 +116,9 @@ function App() {
   const [goToLastTabOnClose, setGoToLastTabOnClose] = useState<boolean>(
     DEFAULT_SETTINGS.goToLastTabOnClose
   );
+  const [closeShortcutKey, setCloseShortcutKey] = useState<string>(
+    DEFAULT_SETTINGS.closeShortcutKey
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const hasModifier = (shortcut: ShortcutSetting): boolean =>
@@ -189,7 +192,9 @@ function App() {
         setTheme(settings.theme);
         setSwitchShortcut(settings.switchShortcut);
         setSearchShortcut(settings.searchShortcut);
+        setSearchWeights(settings.searchWeights);
         setGoToLastTabOnClose(settings.goToLastTabOnClose);
+        setCloseShortcutKey(settings.closeShortcutKey);
         setHydrated(true);
       })
       .finally(() => {
@@ -218,6 +223,7 @@ function App() {
       setSearchShortcut(normalized.searchShortcut);
       setSearchWeights(normalized.searchWeights);
       setGoToLastTabOnClose(normalized.goToLastTabOnClose);
+      setCloseShortcutKey(normalized.closeShortcutKey);
       setHydrated(true);
     });
 
@@ -231,6 +237,7 @@ function App() {
       setSearchShortcut(settings.searchShortcut);
       setSearchWeights(settings.searchWeights);
       setGoToLastTabOnClose(settings.goToLastTabOnClose);
+      setCloseShortcutKey(settings.closeShortcutKey);
     });
 
     return () => {
@@ -257,6 +264,7 @@ function App() {
       searchShortcut,
       searchWeights,
       goToLastTabOnClose,
+      closeShortcutKey,
     }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to save settings", error);
@@ -270,6 +278,7 @@ function App() {
       searchShortcut,
       searchWeights,
       goToLastTabOnClose,
+      closeShortcutKey,
     }).catch((error) => {
       if (cancelled) return;
       console.warn("[SwiftTab] Failed to sync settings to app", error);
@@ -287,6 +296,7 @@ function App() {
     searchShortcut,
     searchWeights,
     goToLastTabOnClose,
+    closeShortcutKey,
   ]);
 
   const toggleEnabled = (): void => {

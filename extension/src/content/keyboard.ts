@@ -93,3 +93,10 @@ export function resolveSwitchDelta(event: KeyboardEvent, settings: HudSettings):
   }
   return 1;
 }
+
+export function closeShortcutMatches(event: KeyboardEvent, settings: HudSettings): boolean {
+  const key = normalizeShortcutKey(settings.closeShortcutKey);
+  if (!key) return false;
+  const shortcut: ShortcutSetting = { ...settings.switchShortcut, key };
+  return shortcutMatches(event, shortcut, { allowExtraShift: !shortcut.shift });
+}

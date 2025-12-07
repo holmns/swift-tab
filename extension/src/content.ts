@@ -13,6 +13,7 @@ import {
 } from "./shared/index.js";
 import { computeItemScore } from "./content/searchScoring.js";
 import {
+  closeShortcutMatches,
   resolveSwitchDelta,
   requiredSwitchModifiersHeld,
   shortcutMatches,
@@ -584,6 +585,28 @@ type SessionMode = "switch" | "search" | null;
     hide();
   }
 
+  async function closeHighlightedTab(): Promise<void> {
+    if (state.mode !== "switch" || !state.items.length) return;
+    const target = state.items[state.index];
+    if (!target) return;
+
+    chrome.runtime.sendMessage({ type: "mru-close", tabId: target.id } satisfies HudMessage);
+
+    state.items = state.items.filter((item) => item.id !== target.id);
+    if (state.index >= state.items.length) {
+      state.index = Math.max(0, state.items.length - 1);
+    }
+
+    if (state.items.length === 0) {
+      hide();
+      return;
+    }
+
+    if (state.visible) {
+      render();
+    }
+  }
+
   function cancelHudTimer(): void {
     if (!state.hudTimer) return;
     clearTimeout(state.hudTimer);
@@ -636,6 +659,12 @@ type SessionMode = "switch" | "search" | null;
         nextSettings.goToLastTabOnClose = maybeValue;
       }
     }
+    if (Object.prototype.hasOwnProperty.call(changes, "closeShortcutKey")) {
+      nextSettings.closeShortcutKey = normalizeHudSettings(
+        { closeShortcutKey: changes.closeShortcutKey?.newValue },
+        state.settings
+      ).closeShortcutKey;
+    }
     if (Object.prototype.hasOwnProperty.call(changes, "switchShortcut")) {
       nextSettings.switchShortcut = normalizeHudSettings(
         { switchShortcut: changes.switchShortcut?.newValue as ShortcutSetting },
@@ -671,6 +700,7 @@ type SessionMode = "switch" | "search" | null;
       const isSwitchShortcut = shortcutMatches(event, state.settings.switchShortcut, {
         allowExtraShift: !state.settings.switchShortcut.shift,
       });
+      const isCloseShortcut = closeShortcutMatches(event, state.settings);
 
       if (isSearchShortcut) {
         event.preventDefault();
@@ -719,6 +749,14 @@ type SessionMode = "switch" | "search" | null;
           return;
         }
 
+        return;
+      }
+
+      if (isCloseShortcut && state.visible && state.mode === "switch") {
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+        event.stopPropagation();
+        void closeHighlightedTab();
         return;
       }
 
