@@ -310,7 +310,7 @@ function App() {
   };
 
   return (
-    <main className="min-h-screen overflow-y-auto p-2">
+    <main className="min-h-screen p-2">
       <div className="overflow-y-auto mx-auto w-full max-w-sm p-5 text-slate-900 dark:text-white">
         <header className="space-y-1">
           <h1 className="text-3xl font-semibold leading-tight text-slate-900 dark:text-white">

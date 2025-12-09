@@ -512,7 +512,7 @@ private struct SettingRow<Content: View>: View {
             selector()
             Button {
                 reset()
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                     rotation -= 360
                 }
             } label: {

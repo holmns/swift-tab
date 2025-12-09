@@ -1,6 +1,6 @@
 {
   "name": "SwiftTab",
-  "description": "MRU tab switcher with HUD",
+  "description": "MRU tab switcher",
   "version": "1.0.0",
   "manifest_version": 3,
   "permissions": ["tabs", "storage"],
