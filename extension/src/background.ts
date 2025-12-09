@@ -4,6 +4,7 @@ import {
   resolveHudTitle,
   type HudItem,
   type HudMessage,
+  type EnabledStateMessage,
   type HudSettings,
   type TabId,
   type WindowId,
@@ -280,6 +281,34 @@ function registerListeners(): void {
     }
 
     return false;
+  });
+
+  chrome.runtime.onMessage.addListener((msg: EnabledStateMessage, _sender, _response) => {
+    if (msg?.type === "enabled-state") {
+      if (msg.enabled) {
+        chrome.action.setIcon({
+          path: {
+            16: "images/toolbar-icon-enabled-16.png",
+            19: "images/toolbar-icon-enabled-19.png",
+            32: "images/toolbar-icon-enabled-32.png",
+            38: "images/toolbar-icon-enabled-38.png",
+            48: "images/toolbar-icon-enabled-48.png",
+            72: "images/toolbar-icon-enabled-72.png",
+          },
+        });
+      } else {
+        chrome.action.setIcon({
+          path: {
+            16: "images/toolbar-icon-disabled-16.png",
+            19: "images/toolbar-icon-disabled-19.png",
+            32: "images/toolbar-icon-disabled-32.png",
+            38: "images/toolbar-icon-disabled-38.png",
+            48: "images/toolbar-icon-disabled-48.png",
+            72: "images/toolbar-icon-disabled-72.png",
+          },
+        });
+      }
+    }
   });
 }
 

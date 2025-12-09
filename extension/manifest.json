@@ -7,6 +7,14 @@
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "dist/background.js", "type": "module" },
   "action": {
+    "default_icon": {
+      "16": "images/toolbar-icon-enabled-16.png",
+      "19": "images/toolbar-icon-enabled-19.png",
+      "32": "images/toolbar-icon-enabled-32.png",
+      "38": "images/toolbar-icon-enabled-38.png",
+      "48": "images/toolbar-icon-enabled-48.png",
+      "72": "images/toolbar-icon-enabled-72.png"
+    },
     "default_popup": "options-dist/index.html"
   },
   "content_scripts": [

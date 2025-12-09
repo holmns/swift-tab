@@ -271,6 +271,11 @@ export interface HudCloseMessage {
 
 export type HudMessage = HudRequestMessage | HudFinalizeMessage | HudCloseMessage;
 
+export interface EnabledStateMessage {
+  type: "enabled-state";
+  enabled: boolean;
+}
+
 export const FAVICON_PROBE_MESSAGE = "swift-tab-favicon-request" as const;
 
 export interface FaviconProbeRequest {

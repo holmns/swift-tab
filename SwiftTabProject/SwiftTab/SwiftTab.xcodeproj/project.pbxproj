@@ -23,6 +23,8 @@
 		F46177C22EB54E4D00B26797 /* dist in Resources */ = {isa = PBXBuildFile; fileRef = F46177BB2EB54E4D00B26797 /* dist */; };
 		F46177C32EB54E4D00B26797 /* content.css in Resources */ = {isa = PBXBuildFile; fileRef = F46177BA2EB54E4D00B26797 /* content.css */; };
 		F46177C52EB54E4D00B26797 /* options-dist in Resources */ = {isa = PBXBuildFile; fileRef = F46177BC2EB54E4D00B26797 /* options-dist */; };
+		FEA7F0102FF342AC00AAAAAA /* images in Resources */ = {isa = PBXBuildFile; fileRef = F47CFEBE2EE862D9003D8DE2 /* images */; };
+		FEA7F0112FF342AC00AAAAAA /* images in Resources */ = {isa = PBXBuildFile; fileRef = F47CFEBE2EE862D9003D8DE2 /* images */; };
 		F4CA31A52EBDF91F009C23CF /* OnboardingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A42EBDF91F009C23CF /* OnboardingFlowView.swift */; };
 		F4CA31A62EBDF91F009C23CF /* MacOnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */; };
 		F4CA31A82EBFB820009C23CF /* BrandTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */; };
@@ -73,6 +75,7 @@
 		F46177BA2EB54E4D00B26797 /* content.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = content.css; path = ../../extension/content.css; sourceTree = SOURCE_ROOT; };
 		F46177BB2EB54E4D00B26797 /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = ../../extension/dist; sourceTree = SOURCE_ROOT; };
 		F46177BC2EB54E4D00B26797 /* options-dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "options-dist"; path = "../../extension/options-dist"; sourceTree = SOURCE_ROOT; };
+		F47CFEBE2EE862D9003D8DE2 /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = images; path = ../../extension/images; sourceTree = SOURCE_ROOT; };
 		F4CA31A32EBDF91F009C23CF /* MacOnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOnboardingViewModel.swift; sourceTree = "<group>"; };
 		F4CA31A42EBDF91F009C23CF /* OnboardingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowView.swift; sourceTree = "<group>"; };
 		F4CA31A72EBFB81C009C23CF /* BrandTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTheme.swift; sourceTree = "<group>"; };
@@ -170,6 +173,7 @@
 		F4251C402EB52FE200D36FD4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				F47CFEBE2EE862D9003D8DE2 /* images */,
 				F46177BA2EB54E4D00B26797 /* content.css */,
 				F46177BB2EB54E4D00B26797 /* dist */,
 				F46177BC2EB54E4D00B26797 /* options-dist */,
@@ -279,6 +283,7 @@
 				F46177BE2EB54E4D00B26797 /* dist in Resources */,
 				F46177BF2EB54E4D00B26797 /* content.css in Resources */,
 				F46177C02EB54E4D00B26797 /* options-dist in Resources */,
+				FEA7F0102FF342AC00AAAAAA /* images in Resources */,
 				F4251C0C2EB52FE200D36FD4 /* Main.storyboard in Resources */,
 				F4251C2D2EB52FE200D36FD4 /* Assets.xcassets in Resources */,
 			);
@@ -291,6 +296,7 @@
 				F46177C22EB54E4D00B26797 /* dist in Resources */,
 				F46177C32EB54E4D00B26797 /* content.css in Resources */,
 				F46177C52EB54E4D00B26797 /* options-dist in Resources */,
+				FEA7F0112FF342AC00AAAAAA /* images in Resources */,
 				FE4E8A0B2FF07E5100C8B1A1 /* SwiftTabProject in Resources */,
 				F4251C452EB52FE200D36FD4 /* manifest.json in Resources */,
 			);
