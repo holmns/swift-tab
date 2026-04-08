@@ -106,7 +106,7 @@ const writeSettings = (settings: HudSettings): Promise<void> =>
 const setToolbarIcon = (enabled: boolean): void => {
   chrome.runtime.sendMessage({
     type: "enabled-state",
-    enabled: enabled
+    enabled: enabled,
   });
 };
 
@@ -337,10 +337,11 @@ function App() {
               type="button"
               onClick={toggleEnabled}
               disabled={isLoading}
-              className={`flex w-full items-center justify-between rounded-[30px] border px-4 py-2 text-base font-semibold transition ${enabled
-                ? "border-slate-200 bg-white text-slate-900 dark:border-white/30 dark:bg-white/10 dark:text-white"
-                : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
-                }`}
+              className={`flex w-full items-center justify-between rounded-[30px] border px-4 py-2 text-base font-semibold transition ${
+                enabled
+                  ? "border-slate-200 bg-white text-slate-900 dark:border-white/30 dark:bg-white/10 dark:text-white"
+                  : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
+              }`}
             >
               <span>{enabled ? "Enabled" : "Disabled"}</span>
               <span className="text-sm text-slate-500 dark:text-white/80">
@@ -403,10 +404,11 @@ function App() {
               type="button"
               onClick={toggleGoToLastTabOnClose}
               disabled={isLoading}
-              className={`flex w-full items-center justify-between rounded-[30px] border px-4 py-2 text-base font-semibold transition ${goToLastTabOnClose
-                ? "border-slate-200 bg-white text-slate-900 dark:border-white/30 dark:bg-white/10 dark:text-white"
-                : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
-                }`}
+              className={`flex w-full items-center justify-between rounded-[30px] border px-4 py-2 text-base font-semibold transition ${
+                goToLastTabOnClose
+                  ? "border-slate-200 bg-white text-slate-900 dark:border-white/30 dark:bg-white/10 dark:text-white"
+                  : "border-slate-100 bg-slate-100 text-slate-400 dark:border-white/15 dark:bg-white/5 dark:text-white/60"
+              }`}
             >
               <span>{goToLastTabOnClose ? "Return to last-used tab" : "Stay on next tab"}</span>
               <span className="text-sm text-slate-500 dark:text-white/80">

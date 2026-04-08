@@ -31,7 +31,7 @@ final class MacOnboardingViewModel: ObservableObject {
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         let hasLaunched = userDefaults.bool(forKey: hasLaunchedKey)
-        stage = hasLaunched ? .welcome : .welcome
+        stage = hasLaunched ? .dashboard : .welcome
         userDefaults.set(true, forKey: hasLaunchedKey)
     }
 

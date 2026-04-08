@@ -2,7 +2,7 @@
 #swift-tab-hud {
   all: initial;
   box-sizing: border-box;
-  --hud-bg: rgba(15, 15, 15, 0.8);
+  --hud-bg: rgba(0, 0, 0, 0.7);
   --hud-text: #fff;
   --hud-border: rgba(150, 150, 150, 0.1);
   --hud-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
@@ -30,7 +30,7 @@
   line-height: 1.6 !important;
   box-shadow: var(--hud-shadow);
   z-index: 2147483647;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
   display: none;
   overflow: hidden;
   isolation: isolate;
@@ -40,7 +40,7 @@
 }
 
 #swift-tab-hud[data-theme="light"] {
-  --hud-bg: rgba(230, 230, 230, 0.8);
+  --hud-bg: rgba(220, 220, 220, 0.7);
   --hud-text: #000000;
   --hud-border: rgba(250, 250, 250, 0.4);
   --hud-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
@@ -213,11 +213,21 @@
   display: block;
 }
 
+#swift-tab-hud img.pin {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin-left: auto;
+  opacity: 0.85;
+  display: block;
+}
+
 #swift-tab-hud .tab-text {
   display: flex;
   flex-direction: column;
   gap: 0;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 #swift-tab-hud .title {

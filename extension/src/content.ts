@@ -2,6 +2,8 @@ import {
   DEFAULT_SETTINGS,
   FALLBACK_FAVICON_DARK_URI,
   FALLBACK_FAVICON_LIGHT_URI,
+  PIN_DARK_URI,
+  PIN_LIGHT_URI,
   normalizeHudSettings,
   FAVICON_PROBE_MESSAGE,
   type HudItem,
@@ -66,6 +68,7 @@ type SessionMode = "switch" | "search" | null;
 
   const onColorSchemeChange = () => {
     applyTheme(state.hud, state.settings, state.colorSchemeQuery);
+    updatePinnedIcons();
   };
 
   function resolveDocumentFaviconHref(): string | null {
@@ -298,6 +301,20 @@ type SessionMode = "switch" | "search" | null;
     return theme === "dark" ? FALLBACK_FAVICON_DARK_URI : FALLBACK_FAVICON_LIGHT_URI;
   }
 
+  function getPinnedIcon(): string {
+    const theme = resolveTheme(state.settings, state.colorSchemeQuery);
+    return theme === "dark" ? PIN_DARK_URI : PIN_LIGHT_URI;
+  }
+
+  function updatePinnedIcons(): void {
+    if (!state.hud) return;
+    const icon = getPinnedIcon();
+    const pins = state.hud.querySelectorAll<HTMLImageElement>("img.pin");
+    pins.forEach((pin) => {
+      pin.src = icon;
+    });
+  }
+
   function getRenderItems(): HudItem[] {
     if (state.mode === "search") {
       return state.filteredItems;
@@ -380,6 +397,15 @@ type SessionMode = "switch" | "search" | null;
 
       li.appendChild(img);
       li.appendChild(text);
+
+      if (tab.pinned) {
+        const pin = document.createElement("img");
+        pin.className = "pin";
+        pin.src = getPinnedIcon();
+        pin.alt = "";
+        pin.setAttribute("aria-hidden", "true");
+        li.appendChild(pin);
+      }
 
       if (searchMode) {
         li.addEventListener("mouseenter", () => {
