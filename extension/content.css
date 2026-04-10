@@ -1,4 +1,21 @@
 /* Reset + isolate the HUD so site styles can't bleed through */
+#swift-tab-dialog {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+}
+
+#swift-tab-dialog::backdrop {
+  background: transparent;
+}
+
 #swift-tab-hud {
   all: initial;
   box-sizing: border-box;
@@ -31,7 +48,6 @@
   box-shadow: var(--hud-shadow);
   z-index: 2147483647;
   backdrop-filter: blur(20px);
-  display: none;
   overflow: hidden;
   isolation: isolate;
   text-rendering: optimizeLegibility;

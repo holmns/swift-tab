@@ -38,6 +38,7 @@ type SessionMode = "switch" | "search" | null;
   }
 
   const state = {
+    dialog: null as HTMLDialogElement | null,
     hud: null as HTMLDivElement | null,
     header: null as HTMLDivElement | null,
     search: null as HTMLInputElement | null,
@@ -196,7 +197,14 @@ type SessionMode = "switch" | "search" | null;
   }
 
   function ensureHud(): void {
-    if (state.hud) return;
+    if (state.hud && state.dialog) return;
+
+    const dialogEl = document.createElement("dialog");
+    dialogEl.id = "swift-tab-dialog";
+    dialogEl.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      hide();
+    });
 
     const hudEl = document.createElement("div");
     hudEl.id = "swift-tab-hud";
@@ -218,8 +226,10 @@ type SessionMode = "switch" | "search" | null;
 
     hudEl.appendChild(headerEl);
     hudEl.appendChild(listElement);
-    document.documentElement.appendChild(hudEl);
+    dialogEl.appendChild(hudEl);
+    document.documentElement.appendChild(dialogEl);
 
+    state.dialog = dialogEl;
     state.hud = hudEl;
     state.header = headerEl;
     state.search = searchInput;
@@ -435,10 +445,12 @@ type SessionMode = "switch" | "search" | null;
 
   function show(): void {
     ensureHud();
-    if (!state.hud) return;
-    state.hud.style.display = "block";
+    if (!state.hud || !state.dialog) return;
     state.visible = true;
     state.hud.classList.toggle("with-search", state.mode === "search");
+    if (!state.dialog.open) {
+      state.dialog.showModal();
+    }
 
     if (state.mode === "search") {
       requestAnimationFrame(() => {
@@ -461,9 +473,11 @@ type SessionMode = "switch" | "search" | null;
 
   function hide(): void {
     if (!state.hud) return;
-    state.hud.style.display = "none";
     state.visible = false;
     state.hud.classList.remove("with-search");
+    if (state.dialog?.open) {
+      state.dialog.close();
+    }
     resetSearchUi();
     state.mode = null;
     state.sessionActive = false;
