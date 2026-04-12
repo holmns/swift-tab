@@ -196,8 +196,26 @@ type SessionMode = "switch" | "search" | null;
     }
   }
 
+  function resetHudDom(): void {
+    if (state.dialog?.isConnected) {
+      state.dialog.remove();
+    }
+    state.dialog = null;
+    state.hud = null;
+    state.header = null;
+    state.search = null;
+    state.list = null;
+  }
+
+  function hudConnected(): boolean {
+    return Boolean(state.dialog?.isConnected && state.hud?.isConnected);
+  }
+
   function ensureHud(): void {
-    if (state.hud && state.dialog) return;
+    if (hudConnected()) return;
+    if (state.hud || state.dialog) {
+      resetHudDom();
+    }
 
     const dialogEl = document.createElement("dialog");
     dialogEl.id = "swift-tab-dialog";
@@ -227,7 +245,8 @@ type SessionMode = "switch" | "search" | null;
     hudEl.appendChild(headerEl);
     hudEl.appendChild(listElement);
     dialogEl.appendChild(hudEl);
-    document.documentElement.appendChild(dialogEl);
+    const host = document.body ?? document.documentElement;
+    host.appendChild(dialogEl);
 
     state.dialog = dialogEl;
     state.hud = hudEl;
@@ -449,7 +468,22 @@ type SessionMode = "switch" | "search" | null;
     state.visible = true;
     state.hud.classList.toggle("with-search", state.mode === "search");
     if (!state.dialog.open) {
-      state.dialog.showModal();
+      try {
+        state.dialog.showModal();
+      } catch (error) {
+        console.warn("[SwiftTab] Failed to open dialog, rebuilding HUD", error);
+        resetHudDom();
+        ensureHud();
+        if (!state.dialog || state.dialog.open) {
+          return;
+        }
+        try {
+          state.dialog.showModal();
+        } catch (retryError) {
+          console.warn("[SwiftTab] Failed to open dialog after rebuild", retryError);
+          return;
+        }
+      }
     }
 
     if (state.mode === "search") {
@@ -476,7 +510,11 @@ type SessionMode = "switch" | "search" | null;
     state.visible = false;
     state.hud.classList.remove("with-search");
     if (state.dialog?.open) {
-      state.dialog.close();
+      try {
+        state.dialog.close();
+      } catch (error) {
+        console.warn("[SwiftTab] Failed to close dialog", error);
+      }
     }
     resetSearchUi();
     state.mode = null;
