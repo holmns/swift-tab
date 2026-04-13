@@ -36,10 +36,7 @@ export function applyTheme(
   hud.dataset.theme = theme;
 }
 
-export function attachColorSchemeListener(
-  query: MediaQueryList,
-  onChange: MediaQueryCallback
-): void {
+function attachColorSchemeListener(query: MediaQueryList, onChange: MediaQueryCallback): void {
   if (typeof query.addEventListener === "function") {
     query.addEventListener("change", onChange);
     return;
@@ -51,10 +48,7 @@ export function attachColorSchemeListener(
   legacyQuery.addListener?.(onChange);
 }
 
-export function detachColorSchemeListener(
-  query: MediaQueryList,
-  onChange: MediaQueryCallback
-): void {
+function detachColorSchemeListener(query: MediaQueryList, onChange: MediaQueryCallback): void {
   if (typeof query.removeEventListener === "function") {
     query.removeEventListener("change", onChange);
     return;

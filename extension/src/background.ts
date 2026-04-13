@@ -21,6 +21,28 @@ let settingsState: HudSettings = { ...DEFAULT_SETTINGS };
 
 const mruStore = createMruStore();
 
+const HUD_ITEMS_STORAGE_KEY = "swifttab.hudItems";
+const HUD_ITEMS_PERSIST_DEBOUNCE_MS = 500;
+let hudItemsPersistTimer: ReturnType<typeof setTimeout> | null = null;
+
+const hudItemsStorageArea = (chrome.storage.session ??
+  chrome.storage.local) as chrome.storage.StorageArea;
+
+async function persistHudItems(windowId: WindowId): Promise<void> {
+  try {
+    const items = await getHudItems(windowId);
+    await hudItemsStorageArea.set({ [HUD_ITEMS_STORAGE_KEY]: items });
+  } catch {}
+}
+
+function scheduleHudItemsPersist(windowId: WindowId): void {
+  if (hudItemsPersistTimer) clearTimeout(hudItemsPersistTimer);
+  hudItemsPersistTimer = setTimeout(() => {
+    hudItemsPersistTimer = null;
+    void persistHudItems(windowId);
+  }, HUD_ITEMS_PERSIST_DEBOUNCE_MS);
+}
+
 function createReplacementTracker() {
   const pending = new Set<TabId>();
   return {
@@ -120,6 +142,7 @@ function registerListeners(): void {
 
   chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
     void mruStore.touch(windowId, tabId);
+    scheduleHudItemsPersist(windowId);
   });
 
   chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -129,6 +152,7 @@ function registerListeners(): void {
       void mruStore.touch(windowId, activeTab.id);
     }
     await mruStore.backfill(windowId);
+    scheduleHudItemsPersist(windowId);
   });
 
   chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
@@ -242,6 +266,7 @@ function registerListeners(): void {
         if (win?.id !== undefined) {
           const items = await getHudItems(win.id);
           sendResponse({ items });
+          void hudItemsStorageArea.set({ [HUD_ITEMS_STORAGE_KEY]: items });
         } else {
           sendResponse({ items: [] });
         }

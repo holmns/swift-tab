@@ -506,7 +506,7 @@ func validateShortcuts(switchShortcut: ShortcutSetting, closeShortcutKey: String
     }
     
     if closeShortcut == searchShortcut {
-        errors.append("Close shortcit cannot be the same as the Search shortcut.")
+        errors.append("Close shortcut cannot be the same as the Search shortcut.")
     }
 
     if !hasModifier(switchShortcut) {

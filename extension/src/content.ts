@@ -524,7 +524,19 @@ type SessionMode = "switch" | "search" | null;
     state.cancelSearchToggle = false;
   }
 
-  function requestItems(): Promise<HudItem[]> {
+  const HUD_ITEMS_STORAGE_KEY = "swifttab.hudItems";
+  const hudItemsStorageArea = (chrome.storage.session ??
+    chrome.storage.local) as chrome.storage.StorageArea;
+
+  async function requestItems(): Promise<HudItem[]> {
+    try {
+      const data = await hudItemsStorageArea.get(HUD_ITEMS_STORAGE_KEY);
+      const cached = data?.[HUD_ITEMS_STORAGE_KEY];
+      if (Array.isArray(cached) && cached.length > 0) {
+        return cached as HudItem[];
+      }
+    } catch {}
+
     return new Promise<HudItem[]>((resolve) => {
       chrome.runtime.sendMessage(
         { type: "mru-request" } satisfies HudMessage,

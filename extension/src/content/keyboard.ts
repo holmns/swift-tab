@@ -1,4 +1,4 @@
-import type { HudSettings, ShortcutSetting } from "../shared/index.js";
+import { normalizeShortcutKey, type HudSettings, type ShortcutSetting } from "../shared/index.js";
 
 export interface ModifierState {
   alt: boolean;
@@ -7,23 +7,7 @@ export interface ModifierState {
   shift: boolean;
 }
 
-export function normalizeShortcutKey(value: string | null | undefined): string {
-  if (!value) return "";
-  if (value === " ") return "space";
-  if (value === "\u00a0") return "space";
-
-  const rawLower = value.toLowerCase();
-  if (rawLower === "spacebar" || rawLower === "space") return "space";
-  if (value === "\t" || rawLower === "tab") return "tab";
-
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed) return "";
-  if (trimmed === "spacebar" || trimmed === "space") return "space";
-  if (trimmed === "\t" || trimmed === "tab") return "tab";
-  return trimmed;
-}
-
-export function normalizeCodeKey(code: string | null | undefined): string {
+function normalizeCodeKey(code: string | null | undefined): string {
   if (!code) return "";
   const lower = code.toLowerCase();
   if (lower === "space") return "space";
@@ -37,7 +21,7 @@ export function normalizeCodeKey(code: string | null | undefined): string {
   return "";
 }
 
-export function normalizeEventKey(event: KeyboardEvent): string {
+function normalizeEventKey(event: KeyboardEvent): string {
   const fromCode = normalizeCodeKey(event.code);
   if (fromCode) return fromCode;
   const normalizedKey = normalizeShortcutKey(event.key);

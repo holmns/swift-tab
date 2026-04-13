@@ -25,3 +25,6 @@ build/
 # Build output
 /extension/dist/
 /extension/options-dist/
+
+# AI
+.claude/

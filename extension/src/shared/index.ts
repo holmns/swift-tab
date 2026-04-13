@@ -94,8 +94,9 @@ function parseBoolean(value: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-function normalizeShortcutKey(value: unknown): string | null {
+export function normalizeShortcutKey(value: unknown): string | null {
   if (typeof value !== "string") return null;
+  if (value === "\u00a0") return "space";
   const rawLower = value.toLowerCase();
   if (rawLower === " " || rawLower === "space" || rawLower === "spacebar") return "space";
   if (value === "\t" || rawLower === "tab") return "tab";
