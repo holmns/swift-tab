@@ -26,20 +26,45 @@ type ChromeLike = {
 const getChromeApi = (): ChromeLike | undefined =>
   (globalThis as typeof globalThis & { chrome?: ChromeLike }).chrome;
 
-const CaretDownIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path
-      fill="currentColor"
-      d="M6.47 9.97a.75.75 0 0 1 1.06 0L12 14.44l4.47-4.47a.75.75 0 0 1 1.06 1.06l-5 5a.75.75 0 0 1-1.06 0l-5-5a.75.75 0 0 1 0-1.06Z"
-    />
-  </svg>
-);
+// Native <select> menus dismiss the Safari toolbar popover when they open,
+// which tears down this page before the change can be persisted. Use a
+// button-based segmented control instead so picking an option behaves like
+// the toggles above and writes the setting reliably.
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  disabled,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex w-full gap-1 rounded-[30px] border border-slate-200 bg-slate-100 p-1 dark:border-white/15 dark:bg-white/5">
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            disabled={disabled}
+            aria-pressed={active}
+            onClick={() => onChange(option.value)}
+            className={`flex-1 rounded-[26px] px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+              active
+                ? "bg-white text-slate-900 shadow-sm dark:bg-white/15 dark:text-white"
+                : "text-slate-500 hover:text-slate-700 dark:text-white/60 dark:hover:text-white/90"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const readSettings = (): Promise<HudSettings> =>
   new Promise((resolve) => {
@@ -361,20 +386,15 @@ function App() {
 
           <section className="space-y-2">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">Layout</p>
-            <div className="relative">
-              <select
-                className="w-full appearance-none rounded-[28px] border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-white/95 dark:focus-visible:ring-white/30"
-                value={layout}
-                disabled={isLoading}
-                onChange={(event) => {
-                  setLayout(event.target.value as LayoutMode);
-                }}
-              >
-                <option value="vertical">Vertical list</option>
-                <option value="horizontal">Horizontal grid</option>
-              </select>
-              <CaretDownIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-white/60" />
-            </div>
+            <SegmentedControl<LayoutMode>
+              options={[
+                { value: "vertical", label: "Vertical list" },
+                { value: "horizontal", label: "Horizontal grid" },
+              ]}
+              value={layout}
+              disabled={isLoading}
+              onChange={setLayout}
+            />
             <p className="text-xs text-slate-500 dark:text-white/60">
               Vertical keeps long titles readable, horizontal fits more tabs on screen.
             </p>
@@ -382,21 +402,16 @@ function App() {
 
           <section className="space-y-2">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">Theme</p>
-            <div className="relative">
-              <select
-                className="w-full appearance-none rounded-[28px] border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-white/95 dark:focus-visible:ring-white/30"
-                value={theme}
-                disabled={isLoading}
-                onChange={(event) => {
-                  setTheme(event.target.value as ThemeMode);
-                }}
-              >
-                <option value="system">Follow device</option>
-                <option value="light">Light Mode</option>
-                <option value="dark">Dark Mode</option>
-              </select>
-              <CaretDownIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-white/60" />
-            </div>
+            <SegmentedControl<ThemeMode>
+              options={[
+                { value: "system", label: "System" },
+                { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
+              ]}
+              value={theme}
+              disabled={isLoading}
+              onChange={setTheme}
+            />
             <p className="text-xs text-slate-500 dark:text-white/60">
               Follow device tracks macOS appearance automatically.
             </p>
