@@ -3,7 +3,7 @@
   "description": "MRU tab switcher",
   "version": "1.0.0",
   "manifest_version": 3,
-  "permissions": ["tabs", "storage"],
+  "permissions": ["tabs", "storage", "nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "dist/background.js", "type": "module" },
   "action": {

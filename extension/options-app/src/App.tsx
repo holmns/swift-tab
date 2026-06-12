@@ -104,10 +104,14 @@ const writeSettings = (settings: HudSettings): Promise<void> =>
   });
 
 const setToolbarIcon = (enabled: boolean): void => {
-  chrome.runtime.sendMessage({
-    type: "enabled-state",
-    enabled: enabled,
-  });
+  chrome.runtime.sendMessage(
+    { type: "enabled-state", enabled },
+    () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[SwiftTab] Failed to update toolbar icon", chrome.runtime.lastError);
+      }
+    }
+  );
 };
 
 function App() {

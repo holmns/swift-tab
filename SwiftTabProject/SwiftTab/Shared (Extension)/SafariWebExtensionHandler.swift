@@ -264,18 +264,56 @@ private final class NativeSettingsStore {
     }
 }
 
-private struct PendingSubscription {
-    weak var context: NSExtensionContext?
-    let timeout: DispatchWorkItem
+private func makeSettingsPayload(type: String, store: NativeSettingsStore) -> [String: Any] {
+    let settings = store.load()
+    return [
+        "type": type,
+        "settings": [
+            "enabled": settings.enabled,
+            "hudDelay": settings.hudDelay,
+            "layout": settings.layout,
+            "theme": settings.theme,
+            "goToLastTabOnClose": settings.goToLastTabOnClose,
+            "closeShortcutKey": settings.closeShortcutKey,
+            "switchShortcut": settings.switchShortcut.dictionary,
+            "searchShortcut": settings.searchShortcut.dictionary,
+            "searchWeights": settings.searchWeights.dictionary
+        ],
+        "updatedAt": store.updatedAt
+    ]
 }
 
-class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
+private func respond(_ context: NSExtensionContext, payload: [String: Any]) {
+    let response = NSExtensionItem()
+    if #available(macOS 11.0, *) {
+        response.userInfo = [SFExtensionMessageKey: payload]
+    } else {
+        response.userInfo = ["message": payload]
+    }
+    context.completeRequest(returningItems: [response], completionHandler: nil)
+}
 
-    private let settingsStore = NativeSettingsStore()
-    private var pendingSubscriptions: [PendingSubscription] = []
-    private let subscriptionTimeout: TimeInterval = 25
+/// Holds pending `subscribe-settings` requests across handler instances.
+///
+/// Safari may create a fresh `SafariWebExtensionHandler` for every message and
+/// release it once `beginRequest` returns, so the subscription registry and the
+/// distributed-notification observer must outlive any single handler. Contexts
+/// are held strongly: a parked request must stay alive until we complete it.
+private final class NativeSettingsBroadcaster: NSObject {
+    static let shared = NativeSettingsBroadcaster()
 
-    override init() {
+    private struct Subscription {
+        let id: UUID
+        let context: NSExtensionContext
+        let timeout: DispatchWorkItem
+    }
+
+    private let store = NativeSettingsStore()
+    private let lock = NSLock()
+    private var subscriptions: [Subscription] = []
+    private let timeoutInterval: TimeInterval = 25
+
+    private override init() {
         super.init()
         DistributedNotificationCenter.default().addObserver(
             self,
@@ -285,9 +323,55 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         )
     }
 
-    deinit {
-        DistributedNotificationCenter.default().removeObserver(self)
+    func addSubscription(for context: NSExtensionContext, since: Double) {
+        // The client missed an update between long-polls; catch it up now
+        // instead of parking the request.
+        if since < store.updatedAt {
+            respond(context, payload: makeSettingsPayload(type: "settings-update", store: store))
+            return
+        }
+
+        let id = UUID()
+        let timeout = DispatchWorkItem { [weak self] in
+            self?.complete(ids: [id])
+        }
+        lock.lock()
+        subscriptions.append(Subscription(id: id, context: context, timeout: timeout))
+        lock.unlock()
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutInterval, execute: timeout)
     }
+
+    func notifySubscribers() {
+        lock.lock()
+        let ids = subscriptions.map { $0.id }
+        lock.unlock()
+        complete(ids: ids)
+    }
+
+    @objc
+    private func handleExternalSettingsChange() {
+        notifySubscribers()
+    }
+
+    private func complete(ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        lock.lock()
+        let targets = subscriptions.filter { subscription in ids.contains(subscription.id) }
+        subscriptions.removeAll { subscription in ids.contains(subscription.id) }
+        lock.unlock()
+        guard !targets.isEmpty else { return }
+
+        let payload = makeSettingsPayload(type: "settings-update", store: store)
+        for target in targets {
+            target.timeout.cancel()
+            respond(target.context, payload: payload)
+        }
+    }
+}
+
+class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
+
+    private let settingsStore = NativeSettingsStore()
 
     func beginRequest(with context: NSExtensionContext) {
         guard let request = context.inputItems.first as? NSExtensionItem else {
@@ -313,7 +397,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
         switch messageType {
         case .readSettings:
-            respond(context, payload: settingsPayload(type: "settings"))
+            respond(context, payload: makeSettingsPayload(type: "settings", store: settingsStore))
         case .writeSettings:
             let incoming = message["settings"] as? [String: Any] ?? [:]
             let current = settingsStore.load()
@@ -355,52 +439,19 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 )
             )
             settingsStore.save(merged)
-            respond(context, payload: settingsPayload(type: "settings"))
-            notifySubscribers(excluding: context)
+            respond(context, payload: makeSettingsPayload(type: "settings", store: settingsStore))
+            NativeSettingsBroadcaster.shared.notifySubscribers()
         case .subscribeSettings:
-            addSubscription(for: context)
+            let since = (message["since"] as? NSNumber)?.doubleValue ?? 0
+            NativeSettingsBroadcaster.shared.addSubscription(for: context, since: since)
         case .openApp:
             let opened = launchContainerApp()
             respond(context, payload: ["type": "open-app", "ok": opened])
         }
     }
-
-    @objc
-    private func handleExternalSettingsChange() {
-        notifySubscribers()
-    }
 }
 
 private extension SafariWebExtensionHandler {
-    func settingsPayload(type: String) -> [String: Any] {
-        let settings = settingsStore.load()
-        return [
-            "type": type,
-            "settings": [
-                "enabled": settings.enabled,
-                "hudDelay": settings.hudDelay,
-                "layout": settings.layout,
-                "theme": settings.theme,
-                "goToLastTabOnClose": settings.goToLastTabOnClose,
-                "closeShortcutKey": settings.closeShortcutKey,
-                "switchShortcut": settings.switchShortcut.dictionary,
-                "searchShortcut": settings.searchShortcut.dictionary,
-                "searchWeights": settings.searchWeights.dictionary
-            ],
-            "updatedAt": settingsStore.updatedAt
-        ]
-    }
-
-    func respond(_ context: NSExtensionContext, payload: [String: Any]) {
-        let response = NSExtensionItem()
-        if #available(macOS 11.0, *) {
-            response.userInfo = [SFExtensionMessageKey: payload]
-        } else {
-            response.userInfo = ["message": payload]
-        }
-        context.completeRequest(returningItems: [response], completionHandler: nil)
-    }
-
     func launchContainerApp() -> Bool {
         let bundleIdentifiers = [
             "com.holmns.swifttab",
@@ -415,34 +466,5 @@ private extension SafariWebExtensionHandler {
             }
         }
         return false
-    }
-
-    func addSubscription(for context: NSExtensionContext) {
-        pendingSubscriptions = pendingSubscriptions.filter { $0.context != nil }
-        let timeout = DispatchWorkItem { [weak self, weak context] in
-            guard let context else { return }
-            self?.respond(context, payload: self?.settingsPayload(type: "settings-update") ?? [:])
-            self?.pendingSubscriptions.removeAll { $0.context == nil || $0.context === context }
-        }
-        pendingSubscriptions.append(PendingSubscription(context: context, timeout: timeout))
-        DispatchQueue.main.asyncAfter(deadline: .now() + subscriptionTimeout, execute: timeout)
-    }
-
-    func notifySubscribers(excluding context: NSExtensionContext? = nil) {
-        let payload = settingsPayload(type: "settings-update")
-        var remaining: [PendingSubscription] = []
-
-        for subscription in pendingSubscriptions {
-            guard let targetContext = subscription.context else { continue }
-            if let exclusion = context, exclusion === targetContext {
-                remaining.append(subscription)
-                continue
-            }
-
-            subscription.timeout.cancel()
-            respond(targetContext, payload: payload)
-        }
-
-        pendingSubscriptions = remaining
     }
 }

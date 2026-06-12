@@ -11,6 +11,7 @@ import {
   type HudMessage,
   type HudSettings,
   type FaviconProbeResponse,
+  type SearchWeights,
   type ShortcutSetting,
 } from "./shared/index.js";
 import { computeItemScore } from "./content/searchScoring.js";
@@ -750,28 +751,16 @@ type SessionMode = "switch" | "search" | null;
       }
     }
     if (Object.prototype.hasOwnProperty.call(changes, "closeShortcutKey")) {
-      nextSettings.closeShortcutKey = normalizeHudSettings(
-        { closeShortcutKey: changes.closeShortcutKey?.newValue },
-        state.settings
-      ).closeShortcutKey;
+      nextSettings.closeShortcutKey = changes.closeShortcutKey?.newValue as string;
     }
     if (Object.prototype.hasOwnProperty.call(changes, "switchShortcut")) {
-      nextSettings.switchShortcut = normalizeHudSettings(
-        { switchShortcut: changes.switchShortcut?.newValue as ShortcutSetting },
-        state.settings
-      ).switchShortcut;
+      nextSettings.switchShortcut = changes.switchShortcut?.newValue as ShortcutSetting;
     }
     if (Object.prototype.hasOwnProperty.call(changes, "searchShortcut")) {
-      nextSettings.searchShortcut = normalizeHudSettings(
-        { searchShortcut: changes.searchShortcut?.newValue as ShortcutSetting },
-        state.settings
-      ).searchShortcut;
+      nextSettings.searchShortcut = changes.searchShortcut?.newValue as ShortcutSetting;
     }
     if (Object.prototype.hasOwnProperty.call(changes, "searchWeights")) {
-      nextSettings.searchWeights = normalizeHudSettings(
-        { searchWeights: changes.searchWeights?.newValue },
-        state.settings
-      ).searchWeights;
+      nextSettings.searchWeights = changes.searchWeights?.newValue as SearchWeights;
     }
     applySettings(normalizeHudSettings(nextSettings, state.settings));
     if (state.mode === "search") {

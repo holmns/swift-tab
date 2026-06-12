@@ -5,6 +5,7 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const MAX_HOST_ENTRIES = 256;
 const MAX_URL_ENTRIES = 256;
 const PERSIST_DEBOUNCE_MS = 250;
+const PERSIST_MAX_WAIT_MS = 1000;
 
 interface CacheEntry {
   dataUri: string | null;
@@ -33,6 +34,7 @@ export function createFaviconStore(): FaviconStore {
   let loadPromise: Promise<void> | null = null;
   let persistPromise: Promise<void> | null = null;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistDeadline: number | null = null;
 
   function extractHostname(rawUrl?: string | null): string | null {
     if (!rawUrl) return null;
@@ -121,21 +123,32 @@ export function createFaviconStore(): FaviconStore {
   }
 
   function schedulePersist(): void {
-    if (persistTimer) return;
+    // Trailing-edge debounce with a deadline so a steady event stream
+    // can't postpone persistence forever.
+    const now = Date.now();
+    if (persistDeadline === null) {
+      persistDeadline = now + PERSIST_MAX_WAIT_MS;
+    }
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+    }
+    const delay = Math.min(PERSIST_DEBOUNCE_MS, Math.max(persistDeadline - now, 0));
     persistTimer = setTimeout(() => {
       persistTimer = null;
+      persistDeadline = null;
       persistPromise = persistCache()
         .catch((error) => console.warn("[SwiftTab] Persist favicon cache failed", error))
         .finally(() => {
           persistPromise = null;
         });
-    }, PERSIST_DEBOUNCE_MS);
+    }, delay);
   }
 
   async function flushPersist(): Promise<void> {
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = null;
+      persistDeadline = null;
     }
     if (persistPromise) {
       await persistPromise;

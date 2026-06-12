@@ -40,7 +40,6 @@ private extension ViewController {
     func configureMacContent() {
         let hostingView = NSHostingView(
             rootView: OnboardingFlowView(viewModel: onboardingViewModel)
-                .preferredColorScheme(.dark)
         )
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hostingView)

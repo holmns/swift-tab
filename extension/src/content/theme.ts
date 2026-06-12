@@ -66,12 +66,13 @@ export function updateColorSchemeListener(
   onChange: MediaQueryCallback
 ): MediaQueryList | null {
   if (settings.theme === "system") {
-    if (!existingQuery && typeof window.matchMedia === "function") {
+    if (existingQuery) return existingQuery;
+    if (typeof window.matchMedia === "function") {
       const query = window.matchMedia(COLOR_SCHEME_QUERY);
       attachColorSchemeListener(query, onChange);
       return query;
     }
-    return existingQuery;
+    return null;
   }
 
   if (existingQuery) {

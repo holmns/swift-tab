@@ -14,14 +14,15 @@ struct OnboardingFlowView: View {
             case .tutorial:
                 TutorialView(
                     onBack: viewModel.returnToWelcome,
-                    onFinish: viewModel.finishTutorial
+                    onFinish: viewModel.finishTutorial,
+                    onOpenSafari: { viewModel.openSafariPreferences() }
                 )
             case .dashboard:
                 DashboardView(viewModel: viewModel)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.stage)
-        .frame(minWidth: 1257, minHeight: 768)
+        .frame(minWidth: 760, minHeight: 540)
     }
 }
 

@@ -308,7 +308,7 @@ function registerListeners(): void {
     return false;
   });
 
-  chrome.runtime.onMessage.addListener((msg: EnabledStateMessage, _sender, _response) => {
+  chrome.runtime.onMessage.addListener((msg: EnabledStateMessage, _sender, sendResponse) => {
     if (msg?.type === "enabled-state") {
       if (msg.enabled) {
         chrome.action.setIcon({
@@ -333,6 +333,7 @@ function registerListeners(): void {
           },
         });
       }
+      sendResponse({ ok: true });
     }
   });
 }

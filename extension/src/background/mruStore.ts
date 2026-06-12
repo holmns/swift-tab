@@ -22,11 +22,13 @@ export function createMruStore(): MruStore {
     chrome.storage.local) as chrome.storage.StorageArea;
   const MRU_STORAGE_KEY = "swifttab.mruStacks";
   const PERSIST_DEBOUNCE_MS = 250;
+  const PERSIST_MAX_WAIT_MS = 1000;
 
   let seedAllPromise: Promise<void> | null = null;
   let loadPromise: Promise<void> | null = null;
   let persistPromise: Promise<void> | null = null;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistDeadline: number | null = null;
   let loaded = false;
 
   function sanitizeStack(input: unknown): TabId[] {
@@ -69,21 +71,32 @@ export function createMruStore(): MruStore {
   }
 
   function schedulePersist(): void {
-    if (persistTimer) return;
+    // Trailing-edge debounce with a deadline so a steady event stream
+    // can't postpone persistence forever.
+    const now = Date.now();
+    if (persistDeadline === null) {
+      persistDeadline = now + PERSIST_MAX_WAIT_MS;
+    }
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+    }
+    const delay = Math.min(PERSIST_DEBOUNCE_MS, Math.max(persistDeadline - now, 0));
     persistTimer = setTimeout(() => {
       persistTimer = null;
+      persistDeadline = null;
       persistPromise = persistStacks()
         .catch((error) => console.warn("[SwiftTab] Persist MRU failed unexpectedly", error))
         .finally(() => {
           persistPromise = null;
         });
-    }, PERSIST_DEBOUNCE_MS);
+    }, delay);
   }
 
   async function flushPersist(): Promise<void> {
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = null;
+      persistDeadline = null;
     }
     if (persistPromise) {
       await persistPromise;
@@ -209,6 +222,16 @@ export function createMruStore(): MruStore {
     if (changed) schedulePersist();
   }
 
+  function prioritizeActive(stack: TabId[], tabs: chrome.tabs.Tab[]): boolean {
+    const activeTab = tabs.find((t) => t.active);
+    if (activeTab?.id === undefined) return false;
+    const idx = stack.indexOf(activeTab.id);
+    if (idx <= 0) return false;
+    stack.splice(idx, 1);
+    stack.unshift(activeTab.id);
+    return true;
+  }
+
   async function performSeedAll(): Promise<void> {
     await ensureLoaded();
     try {
@@ -225,6 +248,7 @@ export function createMruStore(): MruStore {
             changed = true;
           }
         }
+        if (prioritizeActive(stack, tabs)) changed = true;
         if (changed) schedulePersist();
         return;
       }
@@ -243,6 +267,7 @@ export function createMruStore(): MruStore {
         changed = true;
       }
     }
+    if (prioritizeActive(stack, tabs)) changed = true;
     if (changed) schedulePersist();
   }
 
