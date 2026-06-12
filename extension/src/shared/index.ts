@@ -234,6 +234,7 @@ export interface HudItem {
   url: string | null;
   hostname: string | null;
   favIconUrl: string | null;
+  thumbnailUrl?: string | null;
   pinned?: boolean;
 }
 
@@ -287,4 +288,35 @@ export interface FaviconProbeRequest {
 
 export interface FaviconProbeResponse {
   href?: string | null;
+}
+
+export const HUD_STATE_PROBE_MESSAGE = "swift-tab-hud-state-request" as const;
+
+export interface HudStateProbeRequest {
+  type: typeof HUD_STATE_PROBE_MESSAGE;
+}
+
+export interface HudStateProbeResponse {
+  visible?: boolean;
+}
+
+// Tab thumbnails captured by the background script, keyed by tab URL and
+// persisted in chrome.storage.local so they survive browser restarts.
+export const THUMBNAIL_STORAGE_KEY = "swifttab.thumbnailCache";
+export const THUMBNAIL_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+
+export interface ThumbnailCacheEntry {
+  dataUri: string;
+  updatedAt: number;
+}
+
+export interface SerializedThumbnailCache {
+  entries?: Record<string, ThumbnailCacheEntry>;
+}
+
+export function thumbnailEntryFresh(entry: ThumbnailCacheEntry | undefined | null): boolean {
+  if (!entry || typeof entry !== "object") return false;
+  if (typeof entry.dataUri !== "string" || !entry.dataUri.startsWith("data:")) return false;
+  if (typeof entry.updatedAt !== "number" || !Number.isFinite(entry.updatedAt)) return false;
+  return entry.updatedAt + THUMBNAIL_TTL_MS > Date.now();
 }

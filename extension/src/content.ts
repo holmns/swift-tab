@@ -6,12 +6,17 @@ import {
   PIN_LIGHT_URI,
   normalizeHudSettings,
   FAVICON_PROBE_MESSAGE,
+  HUD_STATE_PROBE_MESSAGE,
+  THUMBNAIL_STORAGE_KEY,
+  thumbnailEntryFresh,
   type HudItem,
   type HudItemsResponse,
   type HudMessage,
   type HudSettings,
   type FaviconProbeResponse,
+  type HudStateProbeResponse,
   type SearchWeights,
+  type SerializedThumbnailCache,
   type ShortcutSetting,
 } from "./shared/index.js";
 import { computeItemScore } from "./content/searchScoring.js";
@@ -127,6 +132,9 @@ type SessionMode = "switch" | "search" | null;
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === FAVICON_PROBE_MESSAGE) {
       sendResponse({ href: resolveDocumentFaviconHref() } satisfies FaviconProbeResponse);
+    }
+    if (message?.type === HUD_STATE_PROBE_MESSAGE) {
+      sendResponse({ visible: state.visible } satisfies HudStateProbeResponse);
     }
     return undefined;
   });
@@ -396,10 +404,32 @@ type SessionMode = "switch" | "search" | null;
       return;
     }
 
+    const showThumbnails = !searchMode && state.settings.layout === "horizontal";
+
     renderItems.forEach((tab, index) => {
       const li = document.createElement("li");
       const isSelected = searchMode ? index === state.filterIndex : index === state.index;
       if (isSelected) li.classList.add("selected");
+
+      if (showThumbnails) {
+        li.classList.add("thumb-card");
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        const thumbImg = document.createElement("img");
+        if (tab.thumbnailUrl) {
+          thumbImg.className = "thumb-img";
+          thumbImg.src = tab.thumbnailUrl;
+        } else {
+          // No snapshot yet (or internal page): show the favicon instead.
+          thumbImg.className = "thumb-fallback";
+          thumbImg.src = tab.favIconUrl ?? getFaviconFallback();
+        }
+        thumbImg.alt = "";
+        thumbImg.referrerPolicy = "no-referrer";
+        thumbImg.loading = "lazy";
+        thumb.appendChild(thumbImg);
+        li.appendChild(thumb);
+      }
 
       const img = document.createElement("img");
       img.className = "favicon";
@@ -425,8 +455,13 @@ type SessionMode = "switch" | "search" | null;
         }
       }
 
-      li.appendChild(img);
-      li.appendChild(text);
+      const labelRow = showThumbnails ? document.createElement("div") : li;
+      if (labelRow !== li) {
+        labelRow.className = "tab-label";
+      }
+
+      labelRow.appendChild(img);
+      labelRow.appendChild(text);
 
       if (tab.pinned) {
         const pin = document.createElement("img");
@@ -434,7 +469,11 @@ type SessionMode = "switch" | "search" | null;
         pin.src = getPinnedIcon();
         pin.alt = "";
         pin.setAttribute("aria-hidden", "true");
-        li.appendChild(pin);
+        labelRow.appendChild(pin);
+      }
+
+      if (labelRow !== li) {
+        li.appendChild(labelRow);
       }
 
       if (searchMode) {
@@ -529,7 +568,7 @@ type SessionMode = "switch" | "search" | null;
   const hudItemsStorageArea = (chrome.storage.session ??
     chrome.storage.local) as chrome.storage.StorageArea;
 
-  async function requestItems(): Promise<HudItem[]> {
+  async function readBaseItems(): Promise<HudItem[]> {
     try {
       const data = await hudItemsStorageArea.get(HUD_ITEMS_STORAGE_KEY);
       const cached = data?.[HUD_ITEMS_STORAGE_KEY];
@@ -545,6 +584,36 @@ type SessionMode = "switch" | "search" | null;
           resolve(resp?.items ?? []);
         }
       );
+    });
+  }
+
+  async function readThumbnailsByUrl(): Promise<Map<string, string>> {
+    const thumbnails = new Map<string, string>();
+    try {
+      const data = await chrome.storage.local.get(THUMBNAIL_STORAGE_KEY);
+      const raw = data?.[THUMBNAIL_STORAGE_KEY] as SerializedThumbnailCache | undefined;
+      const entries = raw?.entries;
+      if (!entries || typeof entries !== "object") return thumbnails;
+      for (const [url, entry] of Object.entries(entries)) {
+        if (!thumbnailEntryFresh(entry)) continue;
+        thumbnails.set(url, entry.dataUri);
+      }
+    } catch {}
+    return thumbnails;
+  }
+
+  async function requestItems(): Promise<HudItem[]> {
+    // Thumbnails only render on the horizontal switch HUD; skip the
+    // storage read entirely for other layouts.
+    if (state.settings.layout !== "horizontal") {
+      return readBaseItems();
+    }
+
+    const [items, thumbnails] = await Promise.all([readBaseItems(), readThumbnailsByUrl()]);
+    if (thumbnails.size === 0) return items;
+    return items.map((item) => {
+      const thumbnailUrl = item.url ? thumbnails.get(item.url) : undefined;
+      return thumbnailUrl ? { ...item, thumbnailUrl } : item;
     });
   }
 

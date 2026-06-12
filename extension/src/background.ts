@@ -16,6 +16,7 @@ import {
 } from "./shared/nativeMessaging.js";
 import { createMruStore } from "./background/mruStore.js";
 import { createFaviconStore } from "./background/faviconStore.js";
+import { createThumbnailStore } from "./background/thumbnailStore.js";
 
 let settingsState: HudSettings = { ...DEFAULT_SETTINGS };
 
@@ -66,6 +67,21 @@ function createReplacementTracker() {
 }
 
 const faviconStore = createFaviconStore();
+
+const thumbnailStore = createThumbnailStore();
+
+function scheduleCurrentWindowThumbnail(): void {
+  void (async () => {
+    try {
+      const win = await chrome.windows.getCurrent();
+      if (win?.id !== undefined) {
+        thumbnailStore.scheduleCapture(win.id);
+      }
+    } catch {
+      // no focused window; nothing to capture
+    }
+  })();
+}
 
 async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
   await mruStore.ensureSeeded();
@@ -143,6 +159,7 @@ function registerListeners(): void {
   chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
     void mruStore.touch(windowId, tabId);
     scheduleHudItemsPersist(windowId);
+    thumbnailStore.scheduleCapture(windowId);
   });
 
   chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -153,6 +170,7 @@ function registerListeners(): void {
     }
     await mruStore.backfill(windowId);
     scheduleHudItemsPersist(windowId);
+    thumbnailStore.scheduleCapture(windowId);
   });
 
   chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
@@ -230,6 +248,9 @@ function registerListeners(): void {
 
     if (tab.active) {
       void mruStore.touch(tab.windowId, tabId);
+      if (loadFinished) {
+        thumbnailStore.scheduleCapture(tab.windowId);
+      }
     } else {
       void mruStore.append(tab.windowId, tabId);
     }
@@ -245,16 +266,22 @@ function registerListeners(): void {
 
   chrome.runtime.onStartup.addListener(() => {
     void mruStore.seedAll();
+    scheduleCurrentWindowThumbnail();
   });
 
   chrome.runtime.onInstalled.addListener(() => {
     void mruStore.seedAll();
+    scheduleCurrentWindowThumbnail();
   });
 
   if (chrome.runtime.onSuspend) {
     chrome.runtime.onSuspend.addListener(() => {
       void (async () => {
-        await Promise.all([mruStore.flushPersist(), faviconStore.flushPersist()]);
+        await Promise.all([
+          mruStore.flushPersist(),
+          faviconStore.flushPersist(),
+          thumbnailStore.flushPersist(),
+        ]);
       })();
     });
   }

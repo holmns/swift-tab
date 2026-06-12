@@ -272,3 +272,54 @@
 #swift-tab-hud.with-search .meta {
   display: block;
 }
+
+/* Thumbnail cards (horizontal switch HUD only) */
+#swift-tab-hud.horizontal li.thumb-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 216px;
+  min-width: 216px;
+  max-width: 216px;
+  height: auto;
+  min-height: 0;
+  padding: 10px 10px 12px;
+}
+
+#swift-tab-hud li.thumb-card .thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+#swift-tab-hud[data-theme="light"] li.thumb-card .thumb {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+#swift-tab-hud li.thumb-card img.thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+#swift-tab-hud li.thumb-card img.thumb-fallback {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+}
+
+#swift-tab-hud li.thumb-card .tab-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
