@@ -1,8 +1,10 @@
 import {
   DEFAULT_SETTINGS,
+  HUD_ITEMS_UPDATED_MESSAGE,
   normalizeHudSettings,
   resolveHudTitle,
   type HudItem,
+  type HudItemsUpdatedMessage,
   type HudMessage,
   type EnabledStateMessage,
   type HudSettings,
@@ -31,9 +33,34 @@ const hudItemsStorageArea = (chrome.storage.session ??
 
 async function persistHudItems(windowId: WindowId): Promise<void> {
   try {
-    const items = await getHudItems(windowId);
+    // warm: true resolves favicons too, so this debounced write both keeps the
+    // cache that the HUD reads first fresh AND pre-warms favicons ahead of the
+    // next switch (cache hit → instant, real icons on first open).
+    const items = await getHudItems(windowId, { warm: true });
     await hudItemsStorageArea.set({ [HUD_ITEMS_STORAGE_KEY]: items });
   } catch {}
+}
+
+function faviconsChanged(before: HudItem[], after: HudItem[]): boolean {
+  if (before.length !== after.length) return true;
+  const prior = new Map(before.map((item) => [item.id, item.favIconUrl]));
+  return after.some((item) => prior.get(item.id) !== item.favIconUrl);
+}
+
+// Push an upgraded item list (with freshly-resolved favicons) to the active tab's
+// HUD so an already-open overlay can swap fallbacks for real icons.
+async function broadcastHudItems(windowId: WindowId, items: HudItem[]): Promise<void> {
+  try {
+    const [active] = await chrome.tabs.query({ active: true, windowId });
+    if (active?.id === undefined) return;
+    await chrome.tabs.sendMessage(active.id, {
+      type: HUD_ITEMS_UPDATED_MESSAGE,
+      windowId,
+      items,
+    } satisfies HudItemsUpdatedMessage);
+  } catch {
+    // active tab may have no content script (e.g. internal page); ignore
+  }
 }
 
 function scheduleHudItemsPersist(windowId: WindowId): void {
@@ -83,7 +110,10 @@ function scheduleCurrentWindowThumbnail(): void {
   })();
 }
 
-async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
+async function getHudItems(
+  windowId: WindowId,
+  options: { warm?: boolean } = {}
+): Promise<HudItem[]> {
   await mruStore.ensureSeeded();
   mruStore.ensure(windowId);
 
@@ -110,7 +140,13 @@ async function getHudItems(windowId: WindowId): Promise<HudItem[]> {
     .map((id) => byId.get(id))
     .filter((tab): tab is (typeof typedTabs)[number] => Boolean(tab?.id));
 
-  const icons = await Promise.all(orderedTabs.map((tab) => faviconStore.resolve(tab)));
+  // Hot path (warm: false): never block the HUD on the network — return whatever
+  // favicons are already cached and warm the rest in the background. The warm path
+  // (used off the critical path: persistence + the post-request upgrade) awaits full
+  // resolution so the persisted/broadcast list carries real icons.
+  const icons = options.warm
+    ? await Promise.all(orderedTabs.map((tab) => faviconStore.resolve(tab)))
+    : orderedTabs.map((tab) => faviconStore.resolveCached(tab));
 
   return orderedTabs.map((tab, idx) => {
     const canonicalUrl = tab.url ?? tab.pendingUrl ?? null;
@@ -250,6 +286,7 @@ function registerListeners(): void {
       void mruStore.touch(tab.windowId, tabId);
       if (loadFinished) {
         thumbnailStore.scheduleCapture(tab.windowId);
+        scheduleHudItemsPersist(tab.windowId);
       }
     } else {
       void mruStore.append(tab.windowId, tabId);
@@ -289,13 +326,35 @@ function registerListeners(): void {
   chrome.runtime.onMessage.addListener((msg: HudMessage, _sender, sendResponse) => {
     if (msg?.type === "mru-request") {
       void (async () => {
-        const win = await chrome.windows.getCurrent();
-        if (win?.id !== undefined) {
-          const items = await getHudItems(win.id);
+        // Always send a response, even on failure: the content script awaits this
+        // round-trip, and a missing response leaves its promise hanging forever,
+        // wedging the HUD until the tab is re-activated.
+        try {
+          const win = await chrome.windows.getCurrent();
+          const windowId = win?.id;
+          if (windowId === undefined) {
+            sendResponse({ items: [] });
+            return;
+          }
+          const items = await getHudItems(windowId);
           sendResponse({ items });
           void hudItemsStorageArea.set({ [HUD_ITEMS_STORAGE_KEY]: items });
-        } else {
-          sendResponse({ items: [] });
+          // Off the critical path: resolve any favicons that weren't cached, then
+          // refresh the persisted cache and push the upgrade to an open HUD.
+          void (async () => {
+            try {
+              const warmed = await getHudItems(windowId, { warm: true });
+              await hudItemsStorageArea.set({ [HUD_ITEMS_STORAGE_KEY]: warmed });
+              if (faviconsChanged(items, warmed)) {
+                await broadcastHudItems(windowId, warmed);
+              }
+            } catch {}
+          })();
+        } catch (error) {
+          console.warn("[SwiftTab] mru-request failed", error);
+          try {
+            sendResponse({ items: [] });
+          } catch {}
         }
       })();
       return true;

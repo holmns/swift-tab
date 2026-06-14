@@ -7,10 +7,12 @@ import {
   normalizeHudSettings,
   FAVICON_PROBE_MESSAGE,
   HUD_STATE_PROBE_MESSAGE,
+  HUD_ITEMS_UPDATED_MESSAGE,
   THUMBNAIL_STORAGE_KEY,
   thumbnailEntryFresh,
   type HudItem,
   type HudItemsResponse,
+  type HudItemsUpdatedMessage,
   type HudMessage,
   type HudSettings,
   type FaviconProbeResponse,
@@ -72,6 +74,17 @@ type SessionMode = "switch" | "search" | null;
     isFetchingSearch: false,
     cancelSearchToggle: false,
   };
+
+  // Set globalThis.__SWIFT_TAB_DEBUG__ = true (or edit here) to log cold-start
+  // timing to the console.
+  const DEBUG_TIMING =
+    (globalThis as { __SWIFT_TAB_DEBUG__?: boolean }).__SWIFT_TAB_DEBUG__ === true;
+  const perfNow = (): number => performance.now();
+  function logTiming(label: string, startedAt: number): void {
+    if (DEBUG_TIMING) {
+      console.log(`[SwiftTab] ${label} ${(perfNow() - startedAt).toFixed(1)}ms`);
+    }
+  }
 
   const onColorSchemeChange = () => {
     applyTheme(state.hud, state.settings, state.colorSchemeQuery);
@@ -136,8 +149,28 @@ type SessionMode = "switch" | "search" | null;
     if (message?.type === HUD_STATE_PROBE_MESSAGE) {
       sendResponse({ visible: state.visible } satisfies HudStateProbeResponse);
     }
+    if (message?.type === HUD_ITEMS_UPDATED_MESSAGE) {
+      applyHudItemsUpdate((message as HudItemsUpdatedMessage).items);
+    }
     return undefined;
   });
+
+  // Merge freshly-resolved favicons into the live list without disturbing the
+  // current selection or any thumbnails the content script merged in locally.
+  function applyHudItemsUpdate(items: HudItem[]): void {
+    if (!state.sessionActive || items.length === 0) return;
+    const byId = new Map(items.map((item) => [item.id, item]));
+    let changed = false;
+    state.items = state.items.map((existing) => {
+      const fresh = byId.get(existing.id);
+      if (fresh && fresh.favIconUrl !== existing.favIconUrl) {
+        changed = true;
+        return { ...existing, favIconUrl: fresh.favIconUrl };
+      }
+      return existing;
+    });
+    if (changed && state.visible) render();
+  }
 
   function applySettings(settings: HudSettings): void {
     state.settings = { ...settings };
@@ -168,8 +201,16 @@ type SessionMode = "switch" | "search" | null;
       if (state.initializing) return;
 
       state.initializing = true;
-      const fetched = await requestItems();
-      state.initializing = false;
+      const startedAt = perfNow();
+      let fetched: HudItem[];
+      try {
+        fetched = await requestItems();
+      } finally {
+        // Always clear the guard, even if requestItems rejects — otherwise every
+        // later press hits `if (state.initializing) return` and the HUD is wedged.
+        state.initializing = false;
+      }
+      logTiming("requestItems", startedAt);
 
       if (fetched.length < 1) {
         state.pendingMoves = 0;
@@ -192,6 +233,7 @@ type SessionMode = "switch" | "search" | null;
         ) {
           render();
           show();
+          logTiming("keydown→HUD shown", startedAt);
         }
         state.hudTimer = null;
       }, state.settings.hudDelay);
@@ -565,6 +607,7 @@ type SessionMode = "switch" | "search" | null;
   }
 
   const HUD_ITEMS_STORAGE_KEY = "swifttab.hudItems";
+  const HUD_ITEMS_REQUEST_TIMEOUT_MS = 1500;
   const hudItemsStorageArea = (chrome.storage.session ??
     chrome.storage.local) as chrome.storage.StorageArea;
 
@@ -577,13 +620,30 @@ type SessionMode = "switch" | "search" | null;
       }
     } catch {}
 
+    // Never let a wedged/suspended background worker hang the HUD: if the
+    // round-trip doesn't answer in time, resolve empty so the press fails cleanly
+    // and the next one retries (the background keeps the cache warm in parallel).
     return new Promise<HudItem[]>((resolve) => {
-      chrome.runtime.sendMessage(
-        { type: "mru-request" } satisfies HudMessage,
-        (resp?: HudItemsResponse) => {
-          resolve(resp?.items ?? []);
-        }
-      );
+      let settled = false;
+      const finish = (items: HudItem[]): void => {
+        if (settled) return;
+        settled = true;
+        resolve(items);
+      };
+      const timer = setTimeout(() => finish([]), HUD_ITEMS_REQUEST_TIMEOUT_MS);
+      try {
+        chrome.runtime.sendMessage(
+          { type: "mru-request" } satisfies HudMessage,
+          (resp?: HudItemsResponse) => {
+            clearTimeout(timer);
+            void chrome.runtime.lastError; // read to silence "port closed" warnings
+            finish(resp?.items ?? []);
+          }
+        );
+      } catch {
+        clearTimeout(timer);
+        finish([]);
+      }
     });
   }
 

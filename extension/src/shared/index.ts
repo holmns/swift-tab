@@ -300,6 +300,17 @@ export interface HudStateProbeResponse {
   visible?: boolean;
 }
 
+// Pushed from the background to the active tab's content script once favicons
+// that weren't cached at request time have been resolved, so an open HUD can
+// swap in real icons instead of waiting for the next open.
+export const HUD_ITEMS_UPDATED_MESSAGE = "swift-tab-hud-items-updated" as const;
+
+export interface HudItemsUpdatedMessage {
+  type: typeof HUD_ITEMS_UPDATED_MESSAGE;
+  windowId: WindowId;
+  items: HudItem[];
+}
+
 // Tab thumbnails captured by the background script, keyed by tab URL and
 // persisted in chrome.storage.local so they survive browser restarts.
 export const THUMBNAIL_STORAGE_KEY = "swifttab.thumbnailCache";

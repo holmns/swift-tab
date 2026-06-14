@@ -20,7 +20,20 @@ interface SerializedCache {
 
 export interface FaviconStore {
   resolve(tab: chrome.tabs.Tab & { id: number }): Promise<string | null>;
+  // Synchronous best-effort lookup for the hot path: returns an in-memory cache
+  // hit immediately, otherwise warms the cache in the background and returns null.
+  resolveCached(tab: chrome.tabs.Tab & { id: number }): string | null;
   flushPersist(): Promise<void>;
+}
+
+const FETCH_TIMEOUT_MS = 2500;
+const PROBE_TIMEOUT_MS = 400;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([
+    promise,
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms)),
+  ]);
 }
 
 export function createFaviconStore(): FaviconStore {
@@ -221,18 +234,26 @@ export function createFaviconStore(): FaviconStore {
   }
 
   async function fetchAsDataURI(url: string): Promise<string> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-    const blob = await res.blob();
-    const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-      reader.onloadend = () =>
-        typeof reader.result === "string" && reader.result.startsWith("data:")
-          ? resolve(reader.result)
-          : reject(new Error("Invalid result"));
-      reader.onerror = () => reject(reader.error ?? new Error("FileReader error"));
-      reader.readAsDataURL(blob);
-    });
+    // Abort on timeout so a slow/hung host can never stall a caller that awaits
+    // this (and so pending entries don't leak).
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+      const blob = await res.blob();
+      const reader = new FileReader();
+      return await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () =>
+          typeof reader.result === "string" && reader.result.startsWith("data:")
+            ? resolve(reader.result)
+            : reject(new Error("Invalid result"));
+        reader.onerror = () => reject(reader.error ?? new Error("FileReader error"));
+        reader.readAsDataURL(blob);
+      });
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async function fetchAndCacheUrl(url: string): Promise<string | null> {
@@ -295,9 +316,13 @@ export function createFaviconStore(): FaviconStore {
     if (!canonicalUrl) return null;
 
     try {
-      const response = (await chrome.tabs.sendMessage(tab.id, {
+      // A busy/heavy tab can be slow to answer the probe; cap the wait so it
+      // can't stall favicon warming. Swallow any late rejection.
+      const probe = chrome.tabs.sendMessage(tab.id, {
         type: FAVICON_PROBE_MESSAGE,
-      })) as FaviconProbeResponse | undefined;
+      }) as Promise<FaviconProbeResponse | undefined>;
+      probe.catch(() => {});
+      const response = await withTimeout(probe, PROBE_TIMEOUT_MS);
       const href = response?.href;
       if (!href || typeof href !== "string") return null;
 
@@ -344,10 +369,34 @@ export function createFaviconStore(): FaviconStore {
     return resolveHostFavicon(hostname);
   }
 
+  function resolveCached(tab: chrome.tabs.Tab & { id: number }): string | null {
+    if (tab.favIconUrl?.startsWith("data:")) {
+      return tab.favIconUrl;
+    }
+
+    if (tab.favIconUrl) {
+      const cached = readCache(byUrl, tab.favIconUrl);
+      if (cached !== undefined) return cached;
+      void resolve(tab);
+      return null;
+    }
+
+    const hostname = extractHostname(tab.url ?? tab.pendingUrl ?? undefined);
+    if (hostname) {
+      const cached = readCache(byHost, hostname);
+      // A cached `null` means "known to have no favicon"; don't re-warm it.
+      if (cached !== undefined) return cached;
+    }
+    // Cache miss (or cache not yet loaded): warm in the background, fall back now.
+    void resolve(tab);
+    return null;
+  }
+
   void ensureLoaded();
 
   return {
     resolve,
+    resolveCached,
     flushPersist,
   };
 }
