@@ -32,6 +32,8 @@
 		FE1110022FF1300100AAAAAA /* HudSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1110122FF1300100AAAAAA /* HudSettingsStore.swift */; };
 		FE1110032FF1300100AAAAAA /* HudSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1110132FF1300100AAAAAA /* HudSettingsViewModel.swift */; };
 		FE4E8A0B2FF07E5100C8B1A1 /* SwiftTabProject in Resources */ = {isa = PBXBuildFile; fileRef = FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */; };
+		FEAA00022FF5000100AAAAAA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FEAA00012FF5000100AAAAAA /* PrivacyInfo.xcprivacy */; };
+		FEAA00042FF5000100AAAAAA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FEAA00032FF5000100AAAAAA /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +87,8 @@
 		FE4E8A0A2FF07E5100C8B1A1 /* SwiftTabProject */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftTabProject; path = ../../SwiftTabProject; sourceTree = SOURCE_ROOT; };
 		FE78A0012FF0B00100AAAAAA /* SwiftTab.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftTab.entitlements; sourceTree = "<group>"; };
 		FE78A0022FF0B00100AAAAAB /* SwiftTabExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftTabExtension.entitlements; sourceTree = "<group>"; };
+		FEAA00012FF5000100AAAAAA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		FEAA00032FF5000100AAAAAA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +161,7 @@
 				F4251C0A2EB52FE200D36FD4 /* Main.storyboard */,
 				F4251C0D2EB52FE200D36FD4 /* Info.plist */,
 				FE78A0012FF0B00100AAAAAA /* SwiftTab.entitlements */,
+				FEAA00012FF5000100AAAAAA /* PrivacyInfo.xcprivacy */,
 			);
 			path = "macOS (App)";
 			sourceTree = "<group>";
@@ -166,6 +171,7 @@
 			children = (
 				F4251C212EB52FE200D36FD4 /* Info.plist */,
 				FE78A0022FF0B00100AAAAAB /* SwiftTabExtension.entitlements */,
+				FEAA00032FF5000100AAAAAA /* PrivacyInfo.xcprivacy */,
 			);
 			path = "macOS (Extension)";
 			sourceTree = "<group>";
@@ -286,6 +292,7 @@
 				FEA7F0102FF342AC00AAAAAA /* images in Resources */,
 				F4251C0C2EB52FE200D36FD4 /* Main.storyboard in Resources */,
 				F4251C2D2EB52FE200D36FD4 /* Assets.xcassets in Resources */,
+				FEAA00022FF5000100AAAAAA /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,6 +306,7 @@
 				FEA7F0112FF342AC00AAAAAA /* images in Resources */,
 				FE4E8A0B2FF07E5100C8B1A1 /* SwiftTabProject in Resources */,
 				F4251C452EB52FE200D36FD4 /* manifest.json in Resources */,
+				FEAA00042FF5000100AAAAAA /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
